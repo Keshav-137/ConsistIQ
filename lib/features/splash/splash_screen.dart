@@ -91,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 colors: [Color(0xFF60A5FA), AppTheme.purple],
                               ).createShader(r),
                               child: const Icon(
-                                Icons.local_fire_department_rounded,
+                                Icons.checklist_rounded,
                                 size: 86,
                                 color: Colors.white,
                               ),
@@ -118,6 +118,7 @@ class _SplashScreenState extends State<SplashScreen>
                               const SizedBox(height: 8),
                               Text(
                                 AppConfig.tagline,
+                                textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 15,
                                   letterSpacing: 1.2,

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AppConfig {
-  static const String name = 'Streakly'; // change to your app name
-  static const String tagline = 'Never break the chain';
+  static const String name = 'ConsistIQ';
+  static const String tagline = 'Build routines. Protect your streak.';
 }
 
 /// Glass design tokens that change with dark/light mode.
