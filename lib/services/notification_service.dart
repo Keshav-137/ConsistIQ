@@ -264,6 +264,9 @@ class NotificationService {
           TaskKind.deadline => 'Deadline now: ${t.title}',
           TaskKind.meeting => 'Meeting: ${t.title}',
           TaskKind.study => 'Study time: ${t.title}',
+          TaskKind.task => t.timing == TaskTiming.completeBy
+              ? 'Complete by: ${t.title}'
+              : 'Task reminder: ${t.title}',
           TaskKind.habit => 'Time for: ${t.title}',
         };
         final lab = tt.label.isNotEmpty && t.times.length > 1 ? '${tt.label}. ' : '';

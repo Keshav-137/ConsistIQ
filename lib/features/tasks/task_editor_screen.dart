@@ -24,6 +24,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
   final _notes = TextEditingController();
 
   late TaskKind kind;
+  TaskTiming timing = TaskTiming.atTime;
   RepeatMode repeat = RepeatMode.daily;
   Set<int> weekdays = {1, 2, 3, 4, 5, 6, 7};
   int interval = 2;
@@ -43,6 +44,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
     final t = widget.task;
     if (t != null) {
       kind = t.kind;
+      timing = t.timing;
       _title.text = t.title;
       _dose.text = t.dose;
       _notes.text = t.notes;
@@ -73,6 +75,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
 
   void _defaults(TaskKind k) {
     kind = k;
+    timing = TaskTiming.atTime;
     final today = dayOnly(DateTime.now());
     start = today;
     switch (k) {
@@ -106,6 +109,17 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
         nag = 3;
         follow = 10;
         alarm = true;
+        end = null;
+        break;
+      case TaskKind.task:
+        repeat = RepeatMode.once;
+        final n = DateTime.now().add(const Duration(hours: 1));
+        start = dayOnly(n);
+        times = [TaskTime('At time', n.hour, n.minute)];
+        remind = {15};
+        nag = 0;
+        follow = 15;
+        alarm = false;
         end = null;
         break;
       default:
@@ -175,6 +189,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       notes: _notes.text.trim(),
       dose: _dose.text.trim(),
       kind: kind,
+      timing: timing,
       repeat: repeat,
       weekdays: (weekdays.toList()..sort()),
       intervalDays: interval,
@@ -237,7 +252,8 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
                   TaskKind.habit,
                   TaskKind.medicine,
                   TaskKind.deadline,
-                  TaskKind.meeting
+                  TaskKind.meeting,
+                  TaskKind.task,
                 ])
                   GlassChip(
                     label: k.label,
@@ -264,8 +280,31 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
           GlassField(
               controller: _notes, label: 'Notes (optional)', maxLines: 3),
           const SizedBox(height: 16),
+          if (kind == TaskKind.task)
+            _section(
+              'When do you want to do it?',
+              _chips<TaskTiming>(
+                TaskTiming.values,
+                (v) => timing == v,
+                (v) {
+                  timing = v;
+                  if (times.length == 1) {
+                    times.single.label =
+                        v == TaskTiming.completeBy ? 'Complete by' : 'At time';
+                  }
+                },
+                (v) => switch (v) {
+                  TaskTiming.atTime => 'Remind me at',
+                  TaskTiming.completeBy => 'Complete by',
+                },
+              ),
+            ),
           _section(
-            'Time${times.length > 1 ? 's' : ''}',
+            kind == TaskKind.task
+                ? (timing == TaskTiming.completeBy
+                    ? 'Deadline time'
+                    : 'Reminder time')
+                : 'Time${times.length > 1 ? 's' : ''}',
             Column(children: [
               for (var i = 0; i < times.length; i++)
                 Padding(
@@ -298,100 +337,102 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
                       ),
                   ]),
                 ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Wrap(spacing: 8, runSpacing: 8, children: [
-                  GlassButton(
-                    label: 'Add time',
-                    icon: Icons.add_rounded,
-                    compact: true,
-                    onTap: () =>
-                        setState(() => times.add(TaskTime('Reminder', 9, 0))),
-                  ),
-                  if (kind == TaskKind.medicine) ...[
-                    GlassChip(
-                        label: 'Before bed',
-                        selected: false,
-                        onTap: () => setState(
-                            () => times.add(TaskTime('Before bed', 22, 30)))),
-                  ],
-                ]),
-              ),
+              if (kind != TaskKind.task)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(spacing: 8, runSpacing: 8, children: [
+                    GlassButton(
+                      label: 'Add time',
+                      icon: Icons.add_rounded,
+                      compact: true,
+                      onTap: () =>
+                          setState(() => times.add(TaskTime('Reminder', 9, 0))),
+                    ),
+                    if (kind == TaskKind.medicine) ...[
+                      GlassChip(
+                          label: 'Before bed',
+                          selected: false,
+                          onTap: () => setState(
+                              () => times.add(TaskTime('Before bed', 22, 30)))),
+                    ],
+                  ]),
+                ),
             ]),
           ),
-          _section(
-            'Repeat',
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _chips<RepeatMode>(
-                RepeatMode.values,
-                (v) => repeat == v,
-                (v) => repeat = v,
-                (v) => switch (v) {
-                  RepeatMode.once => 'Only once',
-                  RepeatMode.daily => 'Every day',
-                  RepeatMode.weekdays => 'Selected days',
-                  RepeatMode.interval => 'Every N days',
-                },
-              ),
-              if (repeat == RepeatMode.weekdays) ...[
-                const SizedBox(height: 12),
-                Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      for (var d = 1; d <= 7; d++)
-                        GestureDetector(
-                          onTap: () => setState(() => weekdays.contains(d)
-                              ? weekdays.remove(d)
-                              : weekdays.add(d)),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 38,
-                            height: 38,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: weekdays.contains(d)
-                                  ? AppTheme.blue.withValues(alpha: 0.35)
-                                  : g.tintBottom,
-                              border: Border.all(
-                                  color: weekdays.contains(d)
-                                      ? AppTheme.blue
-                                      : g.border.withValues(alpha: 0.5)),
+          if (kind != TaskKind.task)
+            _section(
+              'Repeat',
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _chips<RepeatMode>(
+                  RepeatMode.values,
+                  (v) => repeat == v,
+                  (v) => repeat = v,
+                  (v) => switch (v) {
+                    RepeatMode.once => 'Only once',
+                    RepeatMode.daily => 'Every day',
+                    RepeatMode.weekdays => 'Selected days',
+                    RepeatMode.interval => 'Every N days',
+                  },
+                ),
+                if (repeat == RepeatMode.weekdays) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        for (var d = 1; d <= 7; d++)
+                          GestureDetector(
+                            onTap: () => setState(() => weekdays.contains(d)
+                                ? weekdays.remove(d)
+                                : weekdays.add(d)),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 38,
+                              height: 38,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: weekdays.contains(d)
+                                    ? AppTheme.blue.withValues(alpha: 0.35)
+                                    : g.tintBottom,
+                                border: Border.all(
+                                    color: weekdays.contains(d)
+                                        ? AppTheme.blue
+                                        : g.border.withValues(alpha: 0.5)),
+                              ),
+                              child: Text(dayNames[d - 1],
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: g.text)),
                             ),
-                            child: Text(dayNames[d - 1],
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: g.text)),
                           ),
-                        ),
-                    ]),
-              ],
-              if (repeat == RepeatMode.interval) ...[
-                const SizedBox(height: 12),
-                Row(children: [
-                  Text('Every', style: TextStyle(color: g.text)),
-                  const SizedBox(width: 10),
-                  IconButton(
-                    icon: Icon(Icons.remove_circle_outline_rounded,
-                        color: g.subText),
-                    onPressed: () => setState(
-                        () => interval = interval > 2 ? interval - 1 : 2),
-                  ),
-                  Text('$interval',
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: g.text)),
-                  IconButton(
-                    icon: Icon(Icons.add_circle_outline_rounded,
-                        color: g.subText),
-                    onPressed: () => setState(() => interval++),
-                  ),
-                  Text('days', style: TextStyle(color: g.text)),
-                ]),
-              ],
-            ]),
-          ),
+                      ]),
+                ],
+                if (repeat == RepeatMode.interval) ...[
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Text('Every', style: TextStyle(color: g.text)),
+                    const SizedBox(width: 10),
+                    IconButton(
+                      icon: Icon(Icons.remove_circle_outline_rounded,
+                          color: g.subText),
+                      onPressed: () => setState(
+                          () => interval = interval > 2 ? interval - 1 : 2),
+                    ),
+                    Text('$interval',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: g.text)),
+                    IconButton(
+                      icon: Icon(Icons.add_circle_outline_rounded,
+                          color: g.subText),
+                      onPressed: () => setState(() => interval++),
+                    ),
+                    Text('days', style: TextStyle(color: g.text)),
+                  ]),
+                ],
+              ]),
+            ),
           _section(
             once ? 'Date' : 'Starts and duration',
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

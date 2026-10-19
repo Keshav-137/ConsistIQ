@@ -88,7 +88,7 @@ class TodayScreen extends StatelessWidget {
                 child: Column(children: [
                   Icon(Icons.add_task_rounded, size: 44, color: g.subText),
                   const SizedBox(height: 12),
-                  Text('Tap + to add a routine, medicine, deadline or meeting.',
+                  Text('Tap + to add a task, routine, medicine, deadline or meeting.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: g.subText)),
                 ]),
@@ -159,6 +159,8 @@ class _AddFab extends StatelessWidget {
                   'Doses per day for 15 / 30 days, taken-or-snooze prompts'),
               opt(TaskKind.deadline,
                   'One-time task that must be done by a time'),
+              opt(TaskKind.task,
+                  'One-time task: choose a reminder time or complete-by deadline'),
               opt(TaskKind.meeting, 'Reminds repeatedly until you press Done'),
             ]);
       }),
@@ -184,9 +186,13 @@ class OccurrenceTile extends StatelessWidget {
     final g = context.glass;
     final t = occ.task;
     final color = t.kind.color;
-    final sub = <String>[fmtHm(occ.time.hour, occ.time.minute)];
-    if (t.times.length > 1 && occ.time.label.isNotEmpty)
+    final timeText = t.kind == TaskKind.task
+        ? (t.timing == TaskTiming.completeBy ? 'By ' : 'At ')
+        : '';
+    final sub = <String>['$timeText${fmtHm(occ.time.hour, occ.time.minute)}'];
+    if (t.times.length > 1 && occ.time.label.isNotEmpty) {
       sub.add(occ.time.label);
+    }
     if (t.dose.isNotEmpty) sub.add(t.dose);
     final plan = st.planById(t.planId);
     if (plan?.nextDay != null) {

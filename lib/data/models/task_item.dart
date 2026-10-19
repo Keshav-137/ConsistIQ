@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../core/utils/time_utils.dart';
 
-enum TaskKind { habit, medicine, deadline, meeting, study }
+enum TaskKind { habit, medicine, deadline, meeting, study, task }
 
 enum RepeatMode { once, daily, weekdays, interval }
+
+enum TaskTiming { atTime, completeBy }
 
 extension TaskKindX on TaskKind {
   String get label => switch (this) {
@@ -12,6 +14,7 @@ extension TaskKindX on TaskKind {
         TaskKind.deadline => 'Deadline',
         TaskKind.meeting => 'Meeting',
         TaskKind.study => 'Study',
+        TaskKind.task => 'Task',
       };
 
   IconData get icon => switch (this) {
@@ -20,6 +23,7 @@ extension TaskKindX on TaskKind {
         TaskKind.deadline => Icons.assignment_late_rounded,
         TaskKind.meeting => Icons.groups_rounded,
         TaskKind.study => Icons.school_rounded,
+        TaskKind.task => Icons.task_alt_rounded,
       };
 
   Color get color => switch (this) {
@@ -28,6 +32,7 @@ extension TaskKindX on TaskKind {
         TaskKind.deadline => const Color(0xFFF59E0B),
         TaskKind.meeting => const Color(0xFF8B5CF6),
         TaskKind.study => const Color(0xFF06B6D4),
+        TaskKind.task => const Color(0xFF22C55E),
       };
 }
 
@@ -48,6 +53,7 @@ class TaskItem {
   String notes;
   String dose;
   TaskKind kind;
+  TaskTiming timing;
   RepeatMode repeat;
   List<int> weekdays; // 1 = Monday ... 7 = Sunday
   int intervalDays;
@@ -70,6 +76,7 @@ class TaskItem {
     this.notes = '',
     this.dose = '',
     required this.kind,
+    this.timing = TaskTiming.atTime,
     this.repeat = RepeatMode.daily,
     List<int>? weekdays,
     this.intervalDays = 1,
@@ -108,6 +115,10 @@ class TaskItem {
   String get summary {
     const names = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final when = times.map((t) => fmtHm(t.hour, t.minute)).join(', ');
+    if (kind == TaskKind.task) {
+      final verb = timing == TaskTiming.completeBy ? 'Complete by' : 'At';
+      return '$verb $when, ${fmtDate(startDate)}';
+    }
     final r = switch (repeat) {
       RepeatMode.once => 'Once, ${fmtDate(startDate)}',
       RepeatMode.daily => 'Daily',
@@ -125,6 +136,7 @@ class TaskItem {
         'notes': notes,
         'dose': dose,
         'kind': kind.index,
+        'timing': timing.index,
         'repeat': repeat.index,
         'weekdays': weekdays,
         'interval': intervalDays,
@@ -148,6 +160,7 @@ class TaskItem {
         notes: (j['notes'] ?? '') as String,
         dose: (j['dose'] ?? '') as String,
         kind: TaskKind.values[(j['kind'] ?? 0) as int],
+        timing: TaskTiming.values[(j['timing'] ?? 0) as int],
         repeat: RepeatMode.values[(j['repeat'] ?? 1) as int],
         weekdays: List<int>.from((j['weekdays'] ?? [1, 2, 3, 4, 5, 6, 7]) as List),
         intervalDays: (j['interval'] ?? 1) as int,
