@@ -59,9 +59,14 @@ class ConsistIQApp extends StatefulWidget {
 
 class _ConsistIQAppState extends State<ConsistIQApp>
     with WidgetsBindingObserver {
+  bool _appInForeground = true;
+
   @override
   void initState() {
     super.initState();
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    _appInForeground =
+        lifecycleState == null || lifecycleState == AppLifecycleState.resumed;
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -73,6 +78,10 @@ class _ConsistIQAppState extends State<ConsistIQApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final isForeground = state == AppLifecycleState.resumed;
+    if (_appInForeground != isForeground && mounted) {
+      setState(() => _appInForeground = isForeground);
+    }
     if (state == AppLifecycleState.resumed) {
       final s = context.read<AppState>();
       s.refreshFromDisk().then((_) => s.reschedule()).catchError((Object e) {
@@ -101,7 +110,10 @@ class _ConsistIQAppState extends State<ConsistIQApp>
               maxScaleFactor: 1.15,
             ),
           ),
-          child: child ?? const SizedBox.shrink(),
+          child: TickerMode(
+            enabled: _appInForeground,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       home: const SplashScreen(),

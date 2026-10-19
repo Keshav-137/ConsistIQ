@@ -29,7 +29,7 @@ class RootShell extends StatefulWidget {
   State<RootShell> createState() => _RootShellState();
 }
 
-class _RootShellState extends State<RootShell> {
+class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   int _i = 0;
   final Set<int> _visited = {0}; // tabs are built lazily, on first visit
   final Set<String> _ringShown = {};
@@ -49,6 +49,7 @@ class _RootShellState extends State<RootShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _sub = NotificationService.instance.taps.listen(_open);
     _widgetSub = HomeWidget.widgetClicked.listen(_handleWidgetClick);
     HomeWidget.initiallyLaunchedFromHomeWidget()
@@ -66,9 +67,15 @@ class _RootShellState extends State<RootShell> {
       final p = NotificationService.instance.pending;
       if (p != null) _open(p);
     });
-    // Every few seconds: pick up completions made from notification buttons
-    // and ring the alarm screen if an alarm is due while the app is open.
-    _poll = Timer.periodic(const Duration(seconds: 4), (_) {
+    _startPolling();
+  }
+
+  void _startPolling() {
+    if (_poll != null ||
+        WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      return;
+    }
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!mounted) return;
       context.read<AppState>().refreshFromDisk().catchError((Object e) {
         debugPrint('Refresh failed: $e');
@@ -78,7 +85,23 @@ class _RootShellState extends State<RootShell> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startPolling();
+      context.read<AppState>().refreshFromDisk().then((_) {
+        if (mounted) _checkAlarms();
+      }).catchError((Object e) {
+        debugPrint('Resume refresh failed: $e');
+      });
+    } else {
+      _poll?.cancel();
+      _poll = null;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sub?.cancel();
     _widgetSub?.cancel();
     _poll?.cancel();

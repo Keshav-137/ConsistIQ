@@ -45,7 +45,6 @@ class TodayScreen extends StatelessWidget {
       SafeArea(
         child: ListView.builder(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 150),
-          cacheExtent: 600,
           itemCount: (occs.isEmpty ? 4 : 3 + occs.length),
           itemBuilder: (context, index) {
             if (index == 0) {
@@ -140,20 +139,15 @@ class TodayScreen extends StatelessWidget {
 class _AddFab extends StatelessWidget {
   const _AddFab();
 
-  @override
-  Widget build(BuildContext context) {
-    return Pressable(
-      pressedScale: 0.92,
-      onTap: () => showGlassSheet(context, builder: (ctx) {
+  Future<void> _openAddSheet(BuildContext context) async {
+    final kind = await showGlassSheet<TaskKind>(
+      context,
+      builder: (ctx) {
         final g = ctx.glass;
         Widget opt(TaskKind k, String sub) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Pressable(
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.of(context)
-                      .push(fadeRoute(TaskEditorScreen(kind: k)));
-                },
+                onTap: () => Navigator.pop(ctx, k),
                 child: GlassContainer(
                   radius: 20,
                   blur: 0,
@@ -197,7 +191,17 @@ class _AddFab extends StatelessWidget {
                   'One-time task: reminder time, complete-by, or alarm'),
               opt(TaskKind.meeting, 'Reminds repeatedly until you press Done'),
             ]);
-      }),
+      },
+    );
+    if (kind == null || !context.mounted) return;
+    Navigator.of(context).push(fadeRoute(TaskEditorScreen(kind: kind)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      pressedScale: 0.92,
+      onTap: () => _openAddSheet(context),
       child: GlassContainer(
         radius: 22,
         blur: 18,

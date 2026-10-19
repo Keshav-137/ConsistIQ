@@ -533,19 +533,34 @@ class ProgressRing extends StatelessWidget {
   }
 }
 
-Future<T?> showGlassSheet<T>(BuildContext context, {required WidgetBuilder builder}) {
+Future<T?> showGlassSheet<T>(BuildContext context,
+    {required WidgetBuilder builder}) {
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black54,
     builder: (ctx) => Padding(
-      padding: EdgeInsets.fromLTRB(12, 0, 12, 12 + MediaQuery.of(ctx).viewInsets.bottom),
+      padding: EdgeInsets.fromLTRB(
+          12, 0, 12, 12 + MediaQuery.of(ctx).viewInsets.bottom),
       child: GlassContainer(
         radius: 28,
         blur: 30,
         padding: const EdgeInsets.all(20),
-        child: SafeArea(top: false, child: SingleChildScrollView(child: Builder(builder: builder))),
+        child: SafeArea(
+          top: false,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.8,
+            ),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              child: Builder(builder: builder),
+            ),
+          ),
+        ),
       ),
     ),
   );
