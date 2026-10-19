@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -54,33 +53,28 @@ class _GlassBackgroundState extends State<GlassBackground>
           ),
           AnimatedBuilder(
             animation: _c,
-            builder: (_, _) {
+            builder: (context, child) {
               final t = _c.value * 2 * math.pi;
-              return Stack(
-                children: [
-                  _blob(
+              return Stack(children: [
+                _blob(
                     size.width * 0.15 + math.sin(t) * 30,
                     size.height * 0.12 + math.cos(t) * 30,
                     260,
                     AppTheme.blue,
-                    dark,
-                  ),
-                  _blob(
+                    dark),
+                _blob(
                     size.width * 0.55 + math.cos(t) * 40,
                     size.height * 0.55 + math.sin(t) * 40,
                     300,
                     AppTheme.purple,
-                    dark,
-                  ),
-                  _blob(
+                    dark),
+                _blob(
                     size.width * -0.1 + math.sin(t + 2) * 30,
                     size.height * 0.7 + math.cos(t + 2) * 30,
                     220,
                     AppTheme.cyan,
-                    dark,
-                  ),
-                ],
-              );
+                    dark),
+              ]);
             },
           ),
           widget.child,
@@ -98,12 +92,10 @@ class _GlassBackgroundState extends State<GlassBackground>
         height: d,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [
-              c.withValues(alpha: dark ? 0.45 : 0.35),
-              c.withValues(alpha: 0.0),
-            ],
-          ),
+          gradient: RadialGradient(colors: [
+            c.withValues(alpha: dark ? 0.45 : 0.35),
+            c.withValues(alpha: 0.0),
+          ]),
         ),
       ),
     );

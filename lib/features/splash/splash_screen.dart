@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glass_background.dart';
 import '../../core/widgets/glass_container.dart';
-import '../home/home_screen.dart';
+import '../lock/lock_gate.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -21,27 +21,23 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _intro = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..forward();
+        vsync: this, duration: const Duration(milliseconds: 2400))
+      ..forward();
     _pulse = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat(reverse: true);
+        vsync: this, duration: const Duration(milliseconds: 1600))
+      ..repeat(reverse: true);
 
     Future.delayed(const Duration(milliseconds: 3200), _goNext);
   }
 
   void _goNext() {
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 700),
-        pageBuilder: (_, _, _) => const HomeScreen(),
-        transitionsBuilder: (_, anim, _, child) =>
-            FadeTransition(opacity: anim, child: child),
-      ),
-    );
+    Navigator.of(context).pushReplacement(PageRouteBuilder(
+      transitionDuration: const Duration(milliseconds: 700),
+      pageBuilder: (context, animation, secondaryAnimation) => const LockGate(),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+          FadeTransition(opacity: animation, child: child),
+    ));
   }
 
   @override
@@ -62,13 +58,11 @@ class _SplashScreenState extends State<SplashScreen>
             Center(
               child: AnimatedBuilder(
                 animation: Listenable.merge([_intro, _pulse]),
-                builder: (_, _) {
+                builder: (context, child) {
                   final logoT = Curves.elasticOut.transform(
-                    const Interval(0.0, 0.6).transform(_intro.value),
-                  );
+                      const Interval(0.0, 0.6).transform(_intro.value));
                   final textT = Curves.easeOut.transform(
-                    const Interval(0.5, 0.85).transform(_intro.value),
-                  );
+                      const Interval(0.5, 0.85).transform(_intro.value));
                   final glow = 0.25 + _pulse.value * 0.35;
 
                   return Column(
@@ -91,7 +85,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 colors: [Color(0xFF60A5FA), AppTheme.purple],
                               ).createShader(r),
                               child: const Icon(
-                                Icons.checklist_rounded,
+                                Icons.local_fire_department_rounded,
                                 size: 86,
                                 color: Colors.white,
                               ),
@@ -104,29 +98,26 @@ class _SplashScreenState extends State<SplashScreen>
                         opacity: textT,
                         child: Transform.translate(
                           offset: Offset(0, 20 * (1 - textT)),
-                          child: Column(
-                            children: [
-                              Text(
-                                AppConfig.name,
-                                style: TextStyle(
-                                  fontSize: 38,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.5,
-                                  color: g.text,
-                                ),
+                          child: Column(children: [
+                            Text(
+                              AppConfig.name,
+                              style: TextStyle(
+                                fontSize: 38,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.5,
+                                color: g.text,
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                AppConfig.tagline,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  letterSpacing: 1.2,
-                                  color: g.subText,
-                                ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              AppConfig.tagline,
+                              style: TextStyle(
+                                fontSize: 15,
+                                letterSpacing: 1.2,
+                                color: g.subText,
                               ),
-                            ],
-                          ),
+                            ),
+                          ]),
                         ),
                       ),
                     ],
@@ -140,7 +131,7 @@ class _SplashScreenState extends State<SplashScreen>
               bottom: 70,
               child: AnimatedBuilder(
                 animation: _intro,
-                builder: (_, _) => ClipRRect(
+                builder: (context, child) => ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
                     height: 6,
@@ -151,8 +142,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: const DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [AppTheme.blue, AppTheme.purple],
-                          ),
+                              colors: [AppTheme.blue, AppTheme.purple]),
                         ),
                       ),
                     ),

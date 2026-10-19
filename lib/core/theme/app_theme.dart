@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppConfig {
   static const String name = 'ConsistIQ';
-  static const String tagline = 'Build routines. Protect your streak.';
+  static const String tagline = 'Never break the chain';
 }
 
 /// Glass design tokens that change with dark/light mode.
@@ -50,14 +50,15 @@ class GlassColors extends ThemeExtension<GlassColors> {
     Color? text,
     Color? subText,
     List<Color>? background,
-  }) => GlassColors(
-    tintTop: tintTop ?? this.tintTop,
-    tintBottom: tintBottom ?? this.tintBottom,
-    border: border ?? this.border,
-    text: text ?? this.text,
-    subText: subText ?? this.subText,
-    background: background ?? this.background,
-  );
+  }) =>
+      GlassColors(
+        tintTop: tintTop ?? this.tintTop,
+        tintBottom: tintBottom ?? this.tintBottom,
+        border: border ?? this.border,
+        text: text ?? this.text,
+        subText: subText ?? this.subText,
+        background: background ?? this.background,
+      );
 
   @override
   GlassColors lerp(ThemeExtension<GlassColors>? other, double t) {
@@ -69,9 +70,7 @@ class GlassColors extends ThemeExtension<GlassColors> {
       text: Color.lerp(text, other.text, t)!,
       subText: Color.lerp(subText, other.subText, t)!,
       background: List.generate(
-        3,
-        (i) => Color.lerp(background[i], other.background[i], t)!,
-      ),
+          3, (i) => Color.lerp(background[i], other.background[i], t)!),
     );
   }
 }
@@ -85,26 +84,25 @@ class AppTheme {
   static const Color blue = Color(0xFF3B82F6);
   static const Color purple = Color(0xFF8B5CF6);
   static const Color cyan = Color(0xFF06B6D4);
+  static const Color green = Color(0xFF22C55E);
+  static const Color amber = Color(0xFFF59E0B);
+  static const Color red = Color(0xFFEF4444);
 
   static ThemeData get dark => ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.dark,
-    scaffoldBackgroundColor: Colors.transparent,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: blue,
-      brightness: Brightness.dark,
-    ),
-    extensions: const [GlassColors.dark],
-  );
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.transparent,
+        colorScheme:
+            ColorScheme.fromSeed(seedColor: blue, brightness: Brightness.dark),
+        extensions: const [GlassColors.dark],
+      );
 
   static ThemeData get light => ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.light,
-    scaffoldBackgroundColor: Colors.transparent,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: blue,
-      brightness: Brightness.light,
-    ),
-    extensions: const [GlassColors.light],
-  );
+        useMaterial3: true,
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.transparent,
+        colorScheme:
+            ColorScheme.fromSeed(seedColor: blue, brightness: Brightness.light),
+        extensions: const [GlassColors.light],
+      );
 }
