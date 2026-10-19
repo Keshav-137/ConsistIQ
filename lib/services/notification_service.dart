@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' show DartPluginRegistrant;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -11,6 +12,7 @@ import 'package:timezone/timezone.dart' as tz;
 import '../core/utils/time_utils.dart';
 import '../data/models/app_settings.dart';
 import '../data/models/task_item.dart';
+import 'home_widget_service.dart';
 import '../state/app_state.dart';
 
 class ReminderPayload {
@@ -44,6 +46,11 @@ void notificationTapBackground(NotificationResponse r) async {
   final s = AppState(background: true);
   await s.load();
   await s.handleAction(p, a);
+  try {
+    await HomeWidgetService.sync(s.tasks, s.comps);
+  } catch (e) {
+    debugPrint('Home widget refresh after notification action failed: $e');
+  }
 }
 
 class _Planned {
@@ -60,6 +67,7 @@ class _Planned {
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
+  static const MethodChannel _alarmChannel = MethodChannel('consistiq/alarms');
 
   static const int windowDays = 10;
   static const int maxScheduled = 400;
@@ -102,13 +110,6 @@ class NotificationService {
       description: 'Task, medicine and deadline reminders',
       importance: Importance.max,
     ));
-    await a?.createNotificationChannel(const AndroidNotificationChannel(
-      'consistiq_alarm',
-      'Alarms',
-      description: 'Loud full-screen alarms',
-      importance: Importance.max,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-    ));
   }
 
   void _onResponse(NotificationResponse r) {
@@ -125,6 +126,7 @@ class NotificationService {
     await a?.requestNotificationsPermission();
     final exact = (await a?.canScheduleExactNotifications()) ?? true;
     if (!exact) await a?.requestExactAlarmsPermission();
+    await a?.requestFullScreenIntentPermission();
     await Permission.ignoreBatteryOptimizations.request();
   }
 
@@ -146,7 +148,9 @@ class NotificationService {
     }
   }
 
-  Future<void> showTest({bool alarm = false}) async {
+  Future<void> showTest({bool alarm = false, AppSettings? settings}) async {
+    final prefs = settings ?? AppSettings();
+    if (alarm) await _ensureAlarmChannel(prefs);
     final body = alarm
         ? 'This is how a full-screen alarm reminder looks.'
         : 'Reminders from ConsistIQ will look like this.';
@@ -156,18 +160,28 @@ class NotificationService {
       body,
       NotificationDetails(
         android: AndroidNotificationDetails(
-          alarm ? 'consistiq_alarm' : 'consistiq_reminder',
+          alarm ? _alarmChannelId(prefs) : 'consistiq_reminder',
           alarm ? 'Alarms' : 'Reminders',
           importance: Importance.max,
           priority: Priority.high,
           fullScreenIntent: alarm,
           category: alarm ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.reminder,
           audioAttributesUsage: alarm ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
+          sound: alarm && prefs.alarmSoundUri.isNotEmpty
+              ? UriAndroidNotificationSound(prefs.alarmSoundUri)
+              : null,
+          enableVibration: !alarm || prefs.alarmVibration,
           icon: '@mipmap/ic_launcher',
         ),
       ),
     );
   }
+
+  Future<String?> pickAlarmSound({required String currentUri}) async =>
+      _alarmChannel.invokeMethod<String>(
+        'pickAlarmSound',
+        {'currentUri': currentUri},
+      );
 
   /// Rebuilds every upcoming reminder from scratch. Completed occurrences get
   /// no reminders; active snoozes are preserved.
@@ -179,6 +193,7 @@ class NotificationService {
   ) async {
     await _plugin.cancelAll();
     if (!settings.notificationsOn) return;
+    await _ensureAlarmChannel(settings);
     final exact = (await _android?.canScheduleExactNotifications()) ?? false;
     final mode = exact ? AndroidScheduleMode.exactAllowWhileIdle : AndroidScheduleMode.inexactAllowWhileIdle;
 
@@ -227,7 +242,7 @@ class NotificationService {
           text.$1,
           text.$2,
           tz.TZDateTime.from(p.when, tz.local),
-          _details(p.task, p.phase, text.$2),
+          _details(p.task, p.phase, text.$2, settings),
           androidScheduleMode: mode,
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           payload: p.payload.encode(),
@@ -275,11 +290,32 @@ class NotificationService {
     }
   }
 
-  NotificationDetails _details(TaskItem t, String phase, String body) {
+  String _alarmChannelId(AppSettings settings) =>
+      'consistiq_alarm_${_hash(settings.alarmSoundUri)}_${settings.alarmVibration ? 1 : 0}';
+
+  Future<void> _ensureAlarmChannel(AppSettings settings) async {
+    final soundUri = settings.alarmSoundUri;
+    await _android?.createNotificationChannel(AndroidNotificationChannel(
+      _alarmChannelId(settings),
+      'Alarms',
+      description: 'Full-screen task alarms',
+      importance: Importance.max,
+      playSound: true,
+      sound: soundUri.isEmpty ? null : UriAndroidNotificationSound(soundUri),
+      enableVibration: settings.alarmVibration,
+      vibrationPattern: settings.alarmVibration
+          ? Int64List.fromList(<int>[0, 350, 250, 350])
+          : null,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+    ));
+  }
+
+  NotificationDetails _details(
+      TaskItem t, String phase, String body, AppSettings settings) {
     final alarm = t.alarmStyle && phase != 'pre';
     return NotificationDetails(
       android: AndroidNotificationDetails(
-        alarm ? 'consistiq_alarm' : 'consistiq_reminder',
+        alarm ? _alarmChannelId(settings) : 'consistiq_reminder',
         alarm ? 'Alarms' : 'Reminders',
         importance: Importance.max,
         priority: Priority.high,
@@ -288,6 +324,13 @@ class NotificationService {
         ongoing: alarm,
         autoCancel: !alarm,
         audioAttributesUsage: alarm ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
+        sound: alarm && settings.alarmSoundUri.isNotEmpty
+            ? UriAndroidNotificationSound(settings.alarmSoundUri)
+            : null,
+        enableVibration: !alarm || settings.alarmVibration,
+        vibrationPattern: alarm && settings.alarmVibration
+            ? Int64List.fromList(<int>[0, 350, 250, 350])
+            : null,
         additionalFlags: alarm ? Int32List.fromList(<int>[4]) : null, // FLAG_INSISTENT
         styleInformation: BigTextStyleInformation(body),
         icon: '@mipmap/ic_launcher',

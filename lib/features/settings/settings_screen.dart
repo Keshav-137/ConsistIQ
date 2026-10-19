@@ -9,6 +9,7 @@ import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
 import '../../state/app_state.dart';
 import 'calendar_import_screen.dart';
+import 'gmail_import_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -73,7 +74,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 12),
             GlassButton(
-              label: 'Grant permissions (notifications, exact alarms, battery)',
+              label: 'Grant alarm and notification permissions',
               icon: Icons.verified_user_rounded,
               compact: true,
               onTap: () => NotificationService.instance.requestPermissions(),
@@ -89,6 +90,92 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Tip: on Xiaomi, Oppo, Vivo, Samsung etc. set ConsistIQ battery to "Unrestricted" and allow auto-start, '
               'otherwise the phone may delay alarms.',
               style: TextStyle(fontSize: 12, color: g.subText),
+            ),
+          ]),
+          _card('Alarm settings', [
+            SwitchRow(
+              icon: Icons.vibration_rounded,
+              title: 'Vibrate for alarms',
+              subtitle: 'Use vibration with alarm notifications',
+              value: s.alarmVibration,
+              onChanged: (v) =>
+                  st.updateSettings((x) => x.alarmVibration = v),
+            ),
+            const SizedBox(height: 10),
+            GlassButton(
+              label: s.alarmSoundUri.isEmpty
+                  ? 'Choose alarm ringtone'
+                  : 'Change alarm ringtone',
+              icon: Icons.music_note_rounded,
+              compact: true,
+              onTap: () async {
+                final uri = await NotificationService.instance.pickAlarmSound(
+                  currentUri: s.alarmSoundUri,
+                );
+                if (uri != null && context.mounted) {
+                  await st.updateSettings((x) => x.alarmSoundUri = uri);
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+            GlassButton(
+              label: 'Use system default ringtone',
+              icon: Icons.restart_alt_rounded,
+              compact: true,
+              onTap: () =>
+                  st.updateSettings((x) => x.alarmSoundUri = ''),
+            ),
+            const SizedBox(height: 14),
+            Text('Default reminder before a task',
+                style: TextStyle(
+                    color: g.text, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final minutes in [0, 5, 15, 30, 60, 120])
+                GlassChip(
+                  label: minutes == 0
+                      ? 'Off'
+                      : minutes >= 60
+                          ? '${minutes ~/ 60} hr'
+                          : '$minutes min',
+                  selected: s.defaultReminderMinutes == minutes,
+                  onTap: () => st.updateSettings(
+                      (x) => x.defaultReminderMinutes = minutes),
+                ),
+            ]),
+            const SizedBox(height: 14),
+            Text('Default snooze duration',
+                style: TextStyle(
+                    color: g.text, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final minutes in [5, 10, 15, 30, 60])
+                GlassChip(
+                  label: '$minutes min',
+                  selected: s.defaultSnoozeMinutes == minutes,
+                  onTap: () => st.updateSettings(
+                      (x) => x.defaultSnoozeMinutes = minutes),
+                ),
+            ]),
+            const SizedBox(height: 10),
+            SwitchRow(
+              icon: Icons.alarm_rounded,
+              title: 'Use full-screen alarm by default',
+              subtitle: 'For new tasks and routines; individual items can override it',
+              value: s.defaultAlarmStyle,
+              onChanged: (v) =>
+                  st.updateSettings((x) => x.defaultAlarmStyle = v),
+            ),
+            const SizedBox(height: 8),
+            GlassButton(
+              label: 'Test configured alarm',
+              icon: Icons.notifications_active_rounded,
+              color: AppTheme.red,
+              compact: true,
+              onTap: () => NotificationService.instance.showTest(
+                alarm: true,
+                settings: s,
+              ),
             ),
           ]),
           _card('Security', [
@@ -139,6 +226,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: Icons.event_rounded,
               compact: true,
               onTap: () => Navigator.of(context).push(fadeRoute(const CalendarImportScreen())),
+            ),
+            const SizedBox(height: 10),
+            GlassButton(
+              label: 'Google account & create tasks from Gmail',
+              icon: Icons.mail_outline_rounded,
+              compact: true,
+              onTap: () => Navigator.of(context)
+                  .push(fadeRoute(const GmailImportScreen())),
             ),
           ]),
           _card('Streak freezes', [

@@ -12,7 +12,15 @@ import '../../state/app_state.dart';
 class TaskEditorScreen extends StatefulWidget {
   final TaskItem? task;
   final TaskKind? kind;
-  const TaskEditorScreen({super.key, this.task, this.kind});
+  final String initialTitle;
+  final String initialNotes;
+  const TaskEditorScreen({
+    super.key,
+    this.task,
+    this.kind,
+    this.initialTitle = '',
+    this.initialNotes = '',
+  });
 
   @override
   State<TaskEditorScreen> createState() => _TaskEditorScreenState();
@@ -62,6 +70,9 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       notify = t.notify;
     } else {
       _defaults(widget.kind ?? TaskKind.habit);
+      _applyUserDefaults();
+      _title.text = widget.initialTitle;
+      _notes.text = widget.initialNotes;
     }
   }
 
@@ -130,6 +141,17 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
         follow = 30;
         alarm = false;
         end = null;
+    }
+  }
+
+  void _applyUserDefaults() {
+    final settings = context.read<AppState>().settings;
+    snooze = settings.defaultSnoozeMinutes;
+    if (kind == TaskKind.task || kind == TaskKind.habit) {
+      remind = settings.defaultReminderMinutes == 0
+          ? {}
+          : {settings.defaultReminderMinutes};
+      alarm = settings.defaultAlarmStyle;
     }
   }
 
@@ -260,7 +282,10 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
                     icon: k.icon,
                     color: k.color,
                     selected: kind == k,
-                    onTap: () => setState(() => _defaults(k)),
+                    onTap: () => setState(() {
+                      _defaults(k);
+                      _applyUserDefaults();
+                    }),
                   ),
               ]),
             ),

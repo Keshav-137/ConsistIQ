@@ -6,6 +6,11 @@ class AppSettings {
   String geminiModel;
   List<String> studyApps; // extra allowed package names in study mode
   bool studySilent;
+  int defaultSnoozeMinutes;
+  int defaultReminderMinutes;
+  bool defaultAlarmStyle;
+  bool alarmVibration;
+  String alarmSoundUri;
 
   AppSettings({
     this.notificationsOn = true,
@@ -15,6 +20,11 @@ class AppSettings {
     this.geminiModel = 'gemini-2.5-flash',
     List<String>? studyApps,
     this.studySilent = true,
+    this.defaultSnoozeMinutes = 10,
+    this.defaultReminderMinutes = 15,
+    this.defaultAlarmStyle = false,
+    this.alarmVibration = true,
+    this.alarmSoundUri = '',
   }) : studyApps = studyApps ?? [];
 
   Map<String, dynamic> toJson() => {
@@ -25,6 +35,11 @@ class AppSettings {
         'model': geminiModel,
         'apps': studyApps,
         'silent': studySilent,
+        'snoozeDefault': defaultSnoozeMinutes,
+        'reminderDefault': defaultReminderMinutes,
+        'alarmDefault': defaultAlarmStyle,
+        'alarmVibration': alarmVibration,
+        'alarmSoundUri': alarmSoundUri,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> j) => AppSettings(
@@ -35,5 +50,10 @@ class AppSettings {
         geminiModel: (j['model'] ?? 'gemini-2.5-flash') as String,
         studyApps: List<String>.from((j['apps'] ?? []) as List),
         studySilent: (j['silent'] ?? true) as bool,
+        defaultSnoozeMinutes: (j['snoozeDefault'] ?? 10) as int,
+        defaultReminderMinutes: (j['reminderDefault'] ?? 15) as int,
+        defaultAlarmStyle: (j['alarmDefault'] ?? false) as bool,
+        alarmVibration: (j['alarmVibration'] ?? true) as bool,
+        alarmSoundUri: (j['alarmSoundUri'] ?? '') as String,
       );
 }

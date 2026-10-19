@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:home_widget/home_widget.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/routes.dart';
+import '../../data/models/task_item.dart';
 import '../../core/widgets/glass_background.dart';
 import '../../core/widgets/glass_container.dart';
+import '../../services/home_widget_service.dart';
 import '../../services/notification_service.dart';
 import '../../state/app_state.dart';
 import '../history/history_screen.dart';
@@ -13,6 +16,7 @@ import '../reminder/reminder_screen.dart';
 import '../settings/settings_screen.dart';
 import '../study/study_mode_screen.dart';
 import '../tasks/routines_screen.dart';
+import '../tasks/task_editor_screen.dart';
 import '../today/today_screen.dart';
 
 class RootShell extends StatefulWidget {
@@ -25,6 +29,7 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> {
   int _i = 0;
   StreamSubscription<ReminderPayload>? _sub;
+  StreamSubscription<Uri?>? _widgetSub;
   Timer? _poll;
 
   static const _tabs = <(IconData, String)>[
@@ -39,6 +44,18 @@ class _RootShellState extends State<RootShell> {
   void initState() {
     super.initState();
     _sub = NotificationService.instance.taps.listen(_open);
+    _widgetSub = HomeWidget.widgetClicked.listen(_handleWidgetClick);
+    HomeWidget.initiallyLaunchedFromHomeWidget()
+        .then(_handleWidgetClick)
+        .catchError((Object error) {
+      debugPrint('Could not read initial home widget action: $error');
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = context.read<AppState>();
+      unawaited(HomeWidgetService.sync(state.tasks, state.comps).catchError((e) {
+        debugPrint('Home widget startup sync failed: $e');
+      }));
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final p = NotificationService.instance.pending;
       if (p != null) _open(p);
@@ -52,6 +69,7 @@ class _RootShellState extends State<RootShell> {
   @override
   void dispose() {
     _sub?.cancel();
+    _widgetSub?.cancel();
     _poll?.cancel();
     super.dispose();
   }
@@ -60,6 +78,17 @@ class _RootShellState extends State<RootShell> {
     if (!mounted) return;
     NotificationService.instance.clearPending();
     Navigator.of(context).push(fadeRoute(ReminderScreen(payload: p)));
+  }
+
+  void _handleWidgetClick(Uri? uri) {
+    if (!mounted || uri == null || uri.host != 'widget') return;
+    if (uri.path == '/add-task') {
+      Navigator.of(context).push(fadeRoute(
+        const TaskEditorScreen(kind: TaskKind.task),
+      ));
+    } else if (uri.path == '/today') {
+      setState(() => _i = 0);
+    }
   }
 
   @override

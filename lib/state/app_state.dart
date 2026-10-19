@@ -9,6 +9,7 @@ import '../data/models/study_plan.dart';
 import '../data/models/task_item.dart';
 import '../services/notification_service.dart';
 import '../services/streak_engine.dart';
+import '../services/home_widget_service.dart';
 
 /// One due item: a task on a given day at a given time slot.
 class Occ {
@@ -119,6 +120,11 @@ class AppState extends ChangeNotifier {
   Future<void> _commit({bool resched = true}) async {
     await _save();
     notifyListeners();
+    if (!background) {
+      unawaited(HomeWidgetService.sync(tasks, comps).catchError((e) {
+        debugPrint('Home widget sync failed: $e');
+      }));
+    }
     if (resched) {
       if (background) {
         await reschedule();

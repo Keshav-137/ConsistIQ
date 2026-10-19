@@ -74,9 +74,14 @@ class _StudyModeScreenState extends State<StudyModeScreen>
         : DateTime.now()
             .add(Duration(minutes: _minutes!))
             .millisecondsSinceEpoch;
-    await StudyModeService.start(settings.studyApps, end, settings.studySilent);
-    await _refresh();
-    if (mounted) toast(context, 'Study mode is ON. Stay focused!');
+    try {
+      await StudyModeService.start(
+          settings.studyApps, end, settings.studySilent);
+      await _refresh();
+      if (mounted) toast(context, 'Study mode is ON. Stay focused!');
+    } catch (e) {
+      if (mounted) toast(context, 'Could not start study mode: $e');
+    }
   }
 
   Future<void> _stop() async {
