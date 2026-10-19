@@ -22,6 +22,7 @@ void main() {
       expect(settings.alarmSoundUri, isEmpty);
       expect(settings.displayName, isEmpty);
       expect(settings.profileSetupComplete, isFalse);
+      expect(settings.lockTimeoutSeconds, 20);
     });
 
     test('round-trips user alarm preferences', () {
@@ -33,6 +34,7 @@ void main() {
         alarmSoundUri: 'content://settings/system/alarm_alert',
         displayName: 'Alex',
         profileSetupComplete: true,
+        lockTimeoutSeconds: 300,
       );
 
       final restored = AppSettings.fromJson(settings.toJson());
@@ -44,6 +46,23 @@ void main() {
       expect(restored.alarmSoundUri, settings.alarmSoundUri);
       expect(restored.displayName, 'Alex');
       expect(restored.profileSetupComplete, isTrue);
+      expect(restored.lockTimeoutSeconds, 300);
+    });
+
+    test('uses the safe default for an invalid saved lock timeout', () {
+      final settings = AppSettings.fromJson({
+        'lockTimeout': -1,
+      });
+
+      expect(settings.lockTimeoutSeconds, 20);
+    });
+
+    test('falls back when saved lock timeout has the wrong type', () {
+      final settings = AppSettings.fromJson({
+        'lockTimeout': '30',
+      });
+
+      expect(settings.lockTimeoutSeconds, 20);
     });
   });
 

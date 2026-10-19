@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 /// Reusable frosted-glass card. Use this for every card, dialog and sheet.
+///
+/// Performance: inside a scrolling list the blur is skipped automatically.
+/// Behind the glass there is only the soft gradient background, so it looks
+/// the same, but scrolling stays at full frame rate.
 class GlassContainer extends StatelessWidget {
   final Widget? child;
   final double? width;
@@ -29,6 +33,10 @@ class GlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final g = context.glass;
+    final inScroll = Scrollable.maybeOf(context) != null;
+    final sigma = blur.clamp(0.0, 24.0).toDouble();
+    final useBlur = sigma > 0 && !inScroll;
+
     final content = Container(
       width: width,
       height: height,
@@ -44,6 +52,7 @@ class GlassContainer extends StatelessWidget {
       ),
       child: child,
     );
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
@@ -59,12 +68,12 @@ class GlassContainer extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
-        child: blur <= 0
-            ? content
-            : BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: useBlur
+            ? BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
                 child: content,
-              ),
+              )
+            : content,
       ),
     );
   }

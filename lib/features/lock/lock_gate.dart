@@ -4,12 +4,15 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glass_background.dart';
 import '../../core/widgets/glass_container.dart';
-import '../../core/widgets/glass_widgets.dart';
+import '../../core/widgets/glass_widgets.dart'
+    hide FadeSlideIn, Pressable, PulsingRings;
+import '../../core/widgets/motion.dart';
 import '../../services/auth_service.dart';
 import '../../state/app_state.dart';
 import '../shell/root_shell.dart';
 
-/// Wraps the app in a fingerprint / face / PIN lock when enabled in Settings.
+/// Wraps the whole app in a fingerprint / face / PIN lock when enabled in
+/// Settings. Locks on every cold start and after the chosen time away.
 class LockGate extends StatefulWidget {
   const LockGate({super.key});
 
@@ -20,6 +23,7 @@ class LockGate extends StatefulWidget {
 class _LockGateState extends State<LockGate> with WidgetsBindingObserver {
   bool _locked = false;
   bool _busy = false;
+  bool _failed = false;
   DateTime? _pausedAt;
 
   @override
@@ -38,13 +42,24 @@ class _LockGateState extends State<LockGate> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
-    if (_busy) return;
+    if (_busy || !mounted) return;
+    final settings = context.read<AppState>().settings;
     if (s == AppLifecycleState.paused) {
       _pausedAt = DateTime.now();
     } else if (s == AppLifecycleState.resumed) {
-      final lockOn = context.read<AppState>().settings.appLock;
-      final away = _pausedAt == null ? Duration.zero : DateTime.now().difference(_pausedAt!);
-      if (lockOn && !_locked && away.inSeconds > 20) {
+      final left = _pausedAt;
+      _pausedAt = null; // consume, so a late "resumed" can never re-lock
+      if (!settings.appLock) {
+        if (_locked) setState(() => _locked = false);
+        return;
+      }
+      if (_locked) {
+        _unlock();
+        return;
+      }
+      if (left != null &&
+          DateTime.now().difference(left).inSeconds >=
+              settings.lockTimeoutSeconds) {
         setState(() => _locked = true);
         _unlock();
       }
@@ -54,40 +69,92 @@ class _LockGateState extends State<LockGate> with WidgetsBindingObserver {
   Future<void> _unlock() async {
     if (_busy) return;
     _busy = true;
-    final ok = await AuthService.authenticate('Unlock ConsistIQ');
+    if (mounted) setState(() => _failed = false);
+    var ok = false;
+    try {
+      ok = await AuthService.authenticate('Unlock ConsistIQ');
+    } catch (_) {
+      ok = false;
+    }
     _busy = false;
-    if (ok && mounted) setState(() => _locked = false);
+    if (!mounted) return;
+    setState(() {
+      if (ok) _locked = false;
+      _failed = !ok;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final g = context.glass;
+    final lockOn = context.select<AppState, bool>((s) => s.settings.appLock);
+    final show = _locked && lockOn;
     return Stack(children: [
       const RootShell(),
-      if (_locked)
-        Positioned.fill(
-          child: Scaffold(
-            body: GlassBackground(
-              child: Center(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  GlassContainer(
-                    width: 110,
-                    height: 110,
-                    radius: 34,
-                    glowColor: AppTheme.blue,
-                    glowOpacity: 0.4,
-                    child: Icon(Icons.fingerprint_rounded, size: 60, color: g.text),
-                  ),
-                  const SizedBox(height: 24),
-                  Text('ConsistIQ is locked',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: g.text)),
-                  const SizedBox(height: 20),
-                  GlassButton(label: 'Unlock', icon: Icons.lock_open_rounded, filled: true, onTap: _unlock),
-                ]),
-              ),
-            ),
+      Positioned.fill(
+        child: IgnorePointer(
+          ignoring: !show,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 280),
+            child: show
+                ? _LockOverlay(
+                    key: const ValueKey('lock'),
+                    failed: _failed,
+                    onUnlock: _unlock,
+                  )
+                : const SizedBox.shrink(key: ValueKey('open')),
           ),
         ),
+      ),
     ]);
+  }
+}
+
+class _LockOverlay extends StatelessWidget {
+  final bool failed;
+  final VoidCallback onUnlock;
+  const _LockOverlay({super.key, required this.failed, required this.onUnlock});
+
+  @override
+  Widget build(BuildContext context) {
+    final g = context.glass;
+    return Scaffold(
+      body: GlassBackground(
+        child: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            PulsingRings(
+              color: AppTheme.blue,
+              size: 220,
+              child: GlassContainer(
+                width: 112,
+                height: 112,
+                radius: 36,
+                blur: 0,
+                glowColor: AppTheme.blue,
+                glowOpacity: 0.4,
+                child: Icon(Icons.fingerprint_rounded, size: 64, color: g.text),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('ConsistIQ is locked',
+                style: TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.w800, color: g.text)),
+            const SizedBox(height: 8),
+            Text(
+              failed
+                  ? 'That did not work. Try again.'
+                  : 'Use your fingerprint, face or phone PIN',
+              style: TextStyle(color: failed ? AppTheme.amber : g.subText),
+            ),
+            const SizedBox(height: 22),
+            GlassButton(
+              label: 'Unlock',
+              icon: Icons.lock_open_rounded,
+              filled: true,
+              onTap: onUnlock,
+            ),
+          ]),
+        ),
+      ),
+    );
   }
 }

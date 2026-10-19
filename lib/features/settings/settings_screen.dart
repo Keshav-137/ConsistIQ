@@ -11,6 +11,7 @@ import '../../services/notification_service.dart';
 import '../../state/app_state.dart';
 import 'calendar_import_screen.dart';
 import 'gmail_import_screen.dart';
+import 'lock_timeout_picker.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -289,13 +290,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }
                     return;
                   }
-                  final ok = await AuthService.authenticate(
-                      'Confirm to turn on app lock');
-                  if (!ok) return;
                 }
                 await st.updateSettings((x) => x.appLock = v, resched: false);
               },
             ),
+            const LockTimeoutPicker(),
           ]),
           _card('Syllabus AI (free)', [
             Text(

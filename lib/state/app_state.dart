@@ -47,27 +47,36 @@ class AppState extends ChangeNotifier {
   // ---------------------------------------------------------------- storage
   List<T> _list<T>(String? s, T Function(Map<String, dynamic>) f) {
     if (s == null) return [];
-    return (jsonDecode(s) as List).map((e) => f(Map<String, dynamic>.from(e as Map))).toList();
+    return (jsonDecode(s) as List)
+        .map((e) => f(Map<String, dynamic>.from(e as Map)))
+        .toList();
   }
 
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
     await p.reload();
     tasks = _list(p.getString('tasks'), TaskItem.fromJson);
-    comps = {for (final c in _list(p.getString('comps'), Completion.fromJson)) c.key: c};
+    comps = {
+      for (final c in _list(p.getString('comps'), Completion.fromJson)) c.key: c
+    };
     plans = _list(p.getString('plans'), StudyPlan.fromJson);
     frozen = {};
     final fz = p.getString('frozen');
     if (fz != null) {
-      (jsonDecode(fz) as Map<String, dynamic>).forEach((k, v) => frozen[k] = Set<String>.from(v as List));
+      (jsonDecode(fz) as Map<String, dynamic>)
+          .forEach((k, v) => frozen[k] = Set<String>.from(v as List));
     }
     snoozes = {};
     final sn = p.getString('snoozes');
     if (sn != null) {
-      (jsonDecode(sn) as Map<String, dynamic>).forEach((k, v) => snoozes[k] = v as int);
+      (jsonDecode(sn) as Map<String, dynamic>)
+          .forEach((k, v) => snoozes[k] = v as int);
     }
     final st = p.getString('settings');
-    settings = st == null ? AppSettings() : AppSettings.fromJson(Map<String, dynamic>.from(jsonDecode(st) as Map));
+    settings = st == null
+        ? AppSettings()
+        : AppSettings.fromJson(
+            Map<String, dynamic>.from(jsonDecode(st) as Map));
     freezes = p.getInt('freezes') ?? 1;
     settledThrough = p.getString('settled');
     _rev = p.getInt('rev') ?? 0;
@@ -87,10 +96,14 @@ class AppState extends ChangeNotifier {
     final p = await SharedPreferences.getInstance();
     await p.reload();
     _rev = (p.getInt('rev') ?? 0) + 1;
-    await p.setString('tasks', jsonEncode(tasks.map((e) => e.toJson()).toList()));
-    await p.setString('comps', jsonEncode(comps.values.map((e) => e.toJson()).toList()));
-    await p.setString('plans', jsonEncode(plans.map((e) => e.toJson()).toList()));
-    await p.setString('frozen', jsonEncode(frozen.map((k, v) => MapEntry(k, v.toList()))));
+    await p.setString(
+        'tasks', jsonEncode(tasks.map((e) => e.toJson()).toList()));
+    await p.setString(
+        'comps', jsonEncode(comps.values.map((e) => e.toJson()).toList()));
+    await p.setString(
+        'plans', jsonEncode(plans.map((e) => e.toJson()).toList()));
+    await p.setString(
+        'frozen', jsonEncode(frozen.map((k, v) => MapEntry(k, v.toList()))));
     await p.setString('snoozes', jsonEncode(snoozes));
     await p.setString('settings', jsonEncode(settings.toJson()));
     await p.setInt('freezes', freezes);
@@ -108,7 +121,8 @@ class AppState extends ChangeNotifier {
     try {
       do {
         _again = false;
-        await NotificationService.instance.rescheduleAll(tasks, comps, snoozes, settings);
+        await NotificationService.instance
+            .rescheduleAll(tasks, comps, snoozes, settings);
       } while (_again);
     } catch (e) {
       debugPrint('reschedule error: $e');
@@ -192,7 +206,8 @@ class AppState extends ChangeNotifier {
       for (final t in tasks) {
         if (t.archived || !t.hasStreak || !t.isScheduledOn(d)) continue;
         if (dayDone(t, dk) || freezes <= 0) continue;
-        final before = computeStreak(t, comps, frozen[t.id] ?? <String>{}, d).current;
+        final before =
+            computeStreak(t, comps, frozen[t.id] ?? <String>{}, d).current;
         if (before > 0) {
           frozen.putIfAbsent(t.id, () => <String>{}).add(dk);
           freezes--;
@@ -201,7 +216,8 @@ class AppState extends ChangeNotifier {
       }
       d = addDays(d, 1);
     }
-    snoozes.removeWhere((k, v) => v < DateTime.now().millisecondsSinceEpoch - 86400000);
+    snoozes.removeWhere(
+        (k, v) => v < DateTime.now().millisecondsSinceEpoch - 86400000);
     settledThrough = yKey;
     return changed || old != yKey;
   }
@@ -231,7 +247,8 @@ class AppState extends ChangeNotifier {
   }
 
   // ------------------------------------------------------------ completions
-  Future<void> complete(TaskItem t, String dk, int slot, {String source = 'tap'}) async {
+  Future<void> complete(TaskItem t, String dk, int slot,
+      {String source = 'tap'}) async {
     final wasDone = dayDone(t, dk);
     final k = occKey(t.id, dk, slot);
     comps[k] = Completion(
@@ -245,7 +262,8 @@ class AppState extends ChangeNotifier {
     snoozes.remove(k);
     if (!wasDone && dayDone(t, dk) && t.hasStreak) {
       final s = streakFor(t).current;
-      if (s > 0 && s % 7 == 0 && freezes < 3) freezes++; // earn a freeze every 7 days
+      if (s > 0 && s % 7 == 0 && freezes < 3)
+        freezes++; // earn a freeze every 7 days
     }
     if (t.planId != null) planById(t.planId)?.markNextDone();
     await _commit();
@@ -290,10 +308,17 @@ class AppState extends ChangeNotifier {
     await _commit();
   }
 
-  Future<void> snooze(TaskItem t, String dk, int slot, int minutes, {DateTime? until}) async {
+  Future<void> snooze(TaskItem t, String dk, int slot, int minutes,
+      {DateTime? until}) async {
     final when = until ?? DateTime.now().add(Duration(minutes: minutes));
     snoozes[occKey(t.id, dk, slot)] = when.millisecondsSinceEpoch;
     await _commit();
+  }
+
+  Future<void> cancelSnooze(TaskItem t, String dk, int slot) async {
+    if (snoozes.remove(occKey(t.id, dk, slot)) != null) {
+      await _commit();
+    }
   }
 
   /// Notification action buttons (works from the background isolate too).
@@ -353,7 +378,8 @@ class AppState extends ChangeNotifier {
   }
 
   // --------------------------------------------------------------- settings
-  Future<void> updateSettings(void Function(AppSettings s) f, {bool resched = true}) async {
+  Future<void> updateSettings(void Function(AppSettings s) f,
+      {bool resched = true}) async {
     f(settings);
     await _commit(resched: resched);
   }

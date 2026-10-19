@@ -120,7 +120,7 @@ class _CalendarImportScreenState extends State<CalendarImportScreen> {
         title: e.title ?? 'Event',
         notes: 'Imported from calendar',
         kind: TaskKind.meeting,
-        repeat: TaskItem.fromJson({'repeat': 0}).repeat,
+        repeat: RepeatMode.once,
         startDate: dayOnly(s),
         times: [TaskTime('Event', allDay ? 9 : s.hour, allDay ? 0 : s.minute)],
         remindBefore: [60, 15],

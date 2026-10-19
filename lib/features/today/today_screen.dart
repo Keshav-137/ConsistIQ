@@ -6,10 +6,13 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/routes.dart';
 import '../../core/utils/time_utils.dart';
 import '../../core/widgets/glass_container.dart';
-import '../../core/widgets/glass_widgets.dart';
+import '../../core/widgets/glass_widgets.dart'
+    hide FadeSlideIn, Pressable, PulsingRings;
+import '../../core/widgets/motion.dart';
 import '../../data/models/task_item.dart';
 import '../../state/app_state.dart';
 import '../planner/plan_detail_screen.dart';
+import '../reminders/reminders_screen.dart';
 import '../tasks/task_editor_screen.dart';
 
 class TodayScreen extends StatelessWidget {
@@ -42,89 +45,110 @@ class TodayScreen extends StatelessWidget {
       SafeArea(
         child: ListView.builder(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 150),
+          cacheExtent: 600,
           itemCount: (occs.isEmpty ? 4 : 3 + occs.length),
           itemBuilder: (context, index) {
             if (index == 0) {
-              return ScreenHeader(title: greeting, subtitle: fmtDate(now));
+              return ScreenHeader(
+                title: greeting,
+                subtitle: fmtDate(now),
+                trailing: GlassIconButton(
+                  icon: Icons.alarm_rounded,
+                  onTap: () => Navigator.of(context)
+                      .push(fadeRoute(const RemindersScreen())),
+                ),
+              );
             }
             if (index == 1) {
-              return GlassContainer(
-                padding: const EdgeInsets.all(18),
-                child: Row(children: [
-                  ProgressRing(
-                    value: occs.isEmpty ? 0 : done / occs.length,
-                    size: 84,
-                    label: '$done/${occs.length}',
-                  ),
-                  const SizedBox(width: 18),
-                  Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(headline,
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: g.text)),
-                          const SizedBox(height: 10),
-                          Row(children: [
-                            const Icon(Icons.local_fire_department_rounded,
-                                size: 18, color: AppTheme.amber),
-                            const SizedBox(width: 6),
-                            Text('$best-day best active streak',
-                                style:
-                                    TextStyle(color: g.subText, fontSize: 13)),
+              return FadeSlideIn(
+                child: GlassContainer(
+                  padding: const EdgeInsets.all(18),
+                  child: Row(children: [
+                    ProgressRing(
+                      value: occs.isEmpty ? 0 : done / occs.length,
+                      size: 84,
+                      label: '$done/${occs.length}',
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(headline,
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: g.text)),
+                            const SizedBox(height: 10),
+                            Row(children: [
+                              const Icon(Icons.local_fire_department_rounded,
+                                  size: 18, color: AppTheme.amber),
+                              const SizedBox(width: 6),
+                              Text('$best-day best active streak',
+                                  style: TextStyle(
+                                      color: g.subText, fontSize: 13)),
+                            ]),
+                            const SizedBox(height: 4),
+                            Row(children: [
+                              const Icon(Icons.ac_unit_rounded,
+                                  size: 18, color: AppTheme.cyan),
+                              const SizedBox(width: 6),
+                              Text(
+                                  '${st.freezes} streak freeze${st.freezes == 1 ? '' : 's'} ready',
+                                  style: TextStyle(
+                                      color: g.subText, fontSize: 13)),
+                            ]),
                           ]),
-                          const SizedBox(height: 4),
-                          Row(children: [
-                            const Icon(Icons.ac_unit_rounded,
-                                size: 18, color: AppTheme.cyan),
-                            const SizedBox(width: 6),
-                            Text(
-                                '${st.freezes} streak freeze${st.freezes == 1 ? '' : 's'} ready',
-                                style:
-                                    TextStyle(color: g.subText, fontSize: 13)),
-                          ]),
-                        ]),
-                  ),
-                ]),
+                    ),
+                  ]),
+                ),
               );
             }
             if (index == 2) return const SizedBox(height: 20);
             if (occs.isEmpty) {
-              return GlassContainer(
-                padding: const EdgeInsets.all(24),
-                child: Column(children: [
-                  Icon(Icons.add_task_rounded, size: 44, color: g.subText),
-                  const SizedBox(height: 12),
-                  Text(
-                      'Tap + to add a task, routine, medicine, deadline or meeting.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: g.subText)),
-                ]),
+              return FadeSlideIn(
+                child: GlassContainer(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(children: [
+                    Icon(Icons.add_task_rounded, size: 44, color: g.subText),
+                    const SizedBox(height: 12),
+                    Text(
+                        'Tap + to add a task, routine, medicine, deadline or meeting.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: g.subText)),
+                  ]),
+                ),
               );
             }
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: OccurrenceTile(occ: occs[index - 3]),
+            final o = occs[index - 3];
+            return FadeSlideIn(
+              key: ValueKey(occKey(o.task.id, o.dateKey, o.slot)),
+              index: index - 3,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: OccurrenceTile(occ: o),
+              ),
             );
           },
         ),
       ),
-      Positioned(right: 20, bottom: 112, child: _AddFab()),
+      const Positioned(right: 20, bottom: 112, child: _AddFab()),
     ]);
   }
 }
 
 class _AddFab extends StatelessWidget {
+  const _AddFab();
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
+      pressedScale: 0.92,
       onTap: () => showGlassSheet(context, builder: (ctx) {
         final g = ctx.glass;
         Widget opt(TaskKind k, String sub) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: GestureDetector(
+              child: Pressable(
                 onTap: () {
                   Navigator.pop(ctx);
                   Navigator.of(context)
@@ -132,7 +156,7 @@ class _AddFab extends StatelessWidget {
                 },
                 child: GlassContainer(
                   radius: 20,
-                  blur: 10,
+                  blur: 0,
                   padding: const EdgeInsets.all(14),
                   child: Row(children: [
                     Icon(k.icon, color: k.color),
@@ -170,7 +194,7 @@ class _AddFab extends StatelessWidget {
               opt(TaskKind.deadline,
                   'One-time task that must be done by a time'),
               opt(TaskKind.task,
-                  'One-time task: choose a reminder time or complete-by deadline'),
+                  'One-time task: reminder time, complete-by, or alarm'),
               opt(TaskKind.meeting, 'Reminds repeatedly until you press Done'),
             ]);
       }),
@@ -200,14 +224,11 @@ class OccurrenceTile extends StatelessWidget {
         ? (t.timing == TaskTiming.completeBy ? 'By ' : 'At ')
         : '';
     final sub = <String>['$timeText${fmtHm(occ.time.hour, occ.time.minute)}'];
-    if (t.times.length > 1 && occ.time.label.isNotEmpty) {
+    if (t.times.length > 1 && occ.time.label.isNotEmpty)
       sub.add(occ.time.label);
-    }
     if (t.dose.isNotEmpty) sub.add(t.dose);
     final plan = st.planById(t.planId);
-    if (plan?.nextDay != null) {
-      sub.add(plan!.nextDay!.title);
-    }
+    if (plan?.nextDay != null) sub.add(plan!.nextDay!.title);
     final streak = t.hasStreak ? st.streakFor(t).current : 0;
     final med = t.kind == TaskKind.medicine;
 
@@ -219,19 +240,23 @@ class OccurrenceTile extends StatelessWidget {
       trailing = Icon(Icons.block_rounded, color: g.subText, size: 30);
     } else {
       trailing = GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () => st.complete(t, occ.dateKey, occ.slot),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: color, width: 2.5),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: color, width: 2.5),
+            ),
           ),
         ),
       );
     }
 
-    return GestureDetector(
+    return Pressable(
       onTap: () {
         if (t.planId != null) {
           Navigator.of(context)
@@ -263,14 +288,27 @@ class OccurrenceTile extends StatelessWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(t.title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: occ.done ? g.subText : g.text,
-                            decoration:
-                                occ.done ? TextDecoration.lineThrough : null,
-                          )),
+                      Row(children: [
+                        Flexible(
+                          child: Text(t.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: occ.done ? g.subText : g.text,
+                                decoration: occ.done
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              )),
+                        ),
+                        if (t.alarmStyle && t.notify)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 6),
+                            child: Icon(Icons.alarm_on_rounded,
+                                size: 15, color: AppTheme.red),
+                          ),
+                      ]),
                       const SizedBox(height: 3),
                       Text(sub.join('  |  '),
                           style: TextStyle(fontSize: 12.5, color: g.subText)),
@@ -289,7 +327,7 @@ class OccurrenceTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(med ? 'Have you taken it?' : 'Have you done it?',
-                          style: TextStyle(
+                          style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               color: AppTheme.amber,
                               fontSize: 13)),

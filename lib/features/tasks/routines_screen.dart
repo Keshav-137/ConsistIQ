@@ -4,11 +4,14 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/routes.dart';
 import '../../core/widgets/glass_container.dart';
-import '../../core/widgets/glass_widgets.dart';
+import '../../core/widgets/glass_widgets.dart'
+    hide FadeSlideIn, Pressable, PulsingRings;
+import '../../core/widgets/motion.dart';
 import '../../data/models/task_item.dart';
 import '../../state/app_state.dart';
 import '../planner/plan_detail_screen.dart';
 import '../planner/planner_screen.dart';
+import '../reminders/reminders_screen.dart';
 import '../settings/calendar_import_screen.dart';
 import 'task_editor_screen.dart';
 
@@ -34,7 +37,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     Widget feature(
             IconData icon, String title, String sub, Color c, Widget page) =>
         Expanded(
-          child: GestureDetector(
+          child: Pressable(
             onTap: () => Navigator.of(context).push(fadeRoute(page)),
             child: GlassContainer(
               radius: 22,
@@ -54,60 +57,83 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
           ),
         );
 
+    final header = <Widget>[
+      const ScreenHeader(title: 'Routines', subtitle: 'Everything you track'),
+      Row(children: [
+        feature(
+            Icons.school_rounded,
+            'Study planner',
+            'Paste syllabus, get daily tasks',
+            AppTheme.cyan,
+            const PlannerScreen()),
+        const SizedBox(width: 12),
+        feature(
+            Icons.event_rounded,
+            'Calendar import',
+            'Bring events as reminders',
+            AppTheme.purple,
+            const CalendarImportScreen()),
+      ]),
+      const SizedBox(height: 12),
+      Row(children: [
+        feature(Icons.alarm_rounded, 'Reminders & alarms',
+            'See and switch what rings', AppTheme.red, const RemindersScreen()),
+        const SizedBox(width: 12),
+        feature(
+            Icons.add_alarm_rounded,
+            'Add alarm',
+            'One-time alarm or reminder',
+            AppTheme.amber,
+            const TaskEditorScreen(kind: TaskKind.task)),
+      ]),
+      const SizedBox(height: 18),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          GlassChip(
+              label: 'All',
+              selected: _filter == null,
+              onTap: () => setState(() => _filter = null)),
+          for (final k in TaskKind.values) ...[
+            const SizedBox(width: 8),
+            GlassChip(
+              label: k.label,
+              selected: _filter == k,
+              color: k.color,
+              onTap: () => setState(() => _filter = k),
+            ),
+          ],
+        ]),
+      ),
+      const SizedBox(height: 16),
+    ];
+
     return SafeArea(
-      child: ListView(
+      child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 150),
-        children: [
-          const ScreenHeader(
-              title: 'Routines', subtitle: 'Everything you track'),
-          Row(children: [
-            feature(
-                Icons.school_rounded,
-                'Study planner',
-                'Paste syllabus, get daily tasks',
-                AppTheme.cyan,
-                const PlannerScreen()),
-            const SizedBox(width: 12),
-            feature(
-                Icons.event_rounded,
-                'Calendar import',
-                'Bring events as reminders',
-                AppTheme.purple,
-                const CalendarImportScreen()),
-          ]),
-          const SizedBox(height: 18),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(children: [
-              GlassChip(
-                  label: 'All',
-                  selected: _filter == null,
-                  onTap: () => setState(() => _filter = null)),
-              for (final k in TaskKind.values) ...[
-                const SizedBox(width: 8),
-                GlassChip(
-                  label: k.label,
-                  selected: _filter == k,
-                  color: k.color,
-                  onTap: () => setState(() => _filter = k),
-                ),
-              ],
-            ]),
-          ),
-          const SizedBox(height: 16),
-          if (list.isEmpty)
-            GlassContainer(
+        cacheExtent: 500,
+        itemCount: header.length + (list.isEmpty ? 1 : list.length),
+        itemBuilder: (context, i) {
+          if (i < header.length) return header[i];
+          if (list.isEmpty) {
+            return GlassContainer(
               padding: const EdgeInsets.all(24),
               child: Center(
-                  child: Text('No items yet. Use + on the Today tab.',
-                      style: TextStyle(color: g.subText))),
-            ),
-          for (final t in list)
-            Padding(
+                child: Text('No items yet. Use + on the Today tab.',
+                    style: TextStyle(color: g.subText)),
+              ),
+            );
+          }
+          final t = list[i - header.length];
+          return FadeSlideIn(
+            key: ValueKey(t.id),
+            index: i - header.length,
+            child: Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _TaskCard(task: t),
             ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -123,7 +149,7 @@ class _TaskCard extends StatelessWidget {
     final g = context.glass;
     final t = task;
     final info = t.hasStreak ? st.streakFor(t) : null;
-    return GestureDetector(
+    return Pressable(
       onTap: () {
         if (t.planId != null) {
           Navigator.of(context)
@@ -134,7 +160,6 @@ class _TaskCard extends StatelessWidget {
       },
       child: GlassContainer(
         radius: 22,
-        blur: 14,
         padding: const EdgeInsets.all(14),
         child: Row(children: [
           Container(
@@ -149,11 +174,23 @@ class _TaskCard extends StatelessWidget {
           Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(t.title,
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: g.text)),
+              Row(children: [
+                Flexible(
+                  child: Text(t.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: g.text)),
+                ),
+                if (t.alarmStyle && t.notify)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 6),
+                    child: Icon(Icons.alarm_on_rounded,
+                        size: 16, color: AppTheme.red),
+                  ),
+              ]),
               const SizedBox(height: 3),
               Text(t.summary, style: TextStyle(fontSize: 12, color: g.subText)),
               if (info != null)

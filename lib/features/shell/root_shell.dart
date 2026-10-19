@@ -1,16 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:home_widget/home_widget.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/routes.dart';
+import '../../core/utils/time_utils.dart';
 import '../../data/models/task_item.dart';
 import '../../core/widgets/glass_background.dart';
 import '../../core/widgets/glass_container.dart';
 import '../../services/home_widget_service.dart';
 import '../../services/notification_service.dart';
 import '../../state/app_state.dart';
+import '../alarm/alarm_ring_screen.dart';
 import '../history/history_screen.dart';
 import '../reminder/reminder_screen.dart';
 import '../settings/settings_screen.dart';
@@ -28,6 +31,9 @@ class RootShell extends StatefulWidget {
 
 class _RootShellState extends State<RootShell> {
   int _i = 0;
+  final Set<int> _visited = {0}; // tabs are built lazily, on first visit
+  final Set<String> _ringShown = {};
+  bool _ringOpen = false;
   StreamSubscription<ReminderPayload>? _sub;
   StreamSubscription<Uri?>? _widgetSub;
   Timer? _poll;
@@ -51,18 +57,23 @@ class _RootShellState extends State<RootShell> {
       debugPrint('Could not read initial home widget action: $error');
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final state = context.read<AppState>();
-      unawaited(HomeWidgetService.sync(state.tasks, state.comps).catchError((e) {
+      unawaited(
+          HomeWidgetService.sync(state.tasks, state.comps).catchError((e) {
         debugPrint('Home widget startup sync failed: $e');
       }));
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
       final p = NotificationService.instance.pending;
       if (p != null) _open(p);
     });
-    // Pick up completions made from notification buttons.
+    // Every few seconds: pick up completions made from notification buttons
+    // and ring the alarm screen if an alarm is due while the app is open.
     _poll = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (mounted) context.read<AppState>().refreshFromDisk();
+      if (!mounted) return;
+      context.read<AppState>().refreshFromDisk().catchError((Object e) {
+        debugPrint('Refresh failed: $e');
+      });
+      _checkAlarms();
     });
   }
 
@@ -74,10 +85,43 @@ class _RootShellState extends State<RootShell> {
     super.dispose();
   }
 
-  void _open(ReminderPayload p) {
+  Future<void> _open(ReminderPayload p) async {
     if (!mounted) return;
     NotificationService.instance.clearPending();
-    Navigator.of(context).push(fadeRoute(ReminderScreen(payload: p)));
+    if (_ringOpen) return;
+    final t = context.read<AppState>().taskById(p.taskId);
+    final alarm = t != null && t.alarmStyle && p.slot < t.times.length;
+    _ringOpen = true;
+    try {
+      await Navigator.of(context).push(fadeRoute<void>(
+        alarm ? AlarmRingScreen(payload: p) : ReminderScreen(payload: p),
+      ));
+    } finally {
+      _ringOpen = false;
+    }
+  }
+
+  /// In-app alarm: when the app is open and an alarm time arrives, show the
+  /// full-screen alarm right away (the notification still rings too).
+  void _checkAlarms() {
+    if (!mounted || _ringOpen) return;
+    final st = context.read<AppState>();
+    if (!st.settings.notificationsOn) return;
+    final now = DateTime.now();
+    for (final o in st.occurrencesOn(now)) {
+      final t = o.task;
+      if (o.c != null || !t.alarmStyle || !t.notify) continue;
+      final k = occKey(t.id, o.dateKey, o.slot);
+      final snooze = st.snoozes[k];
+      final ringAt =
+          snooze != null ? DateTime.fromMillisecondsSinceEpoch(snooze) : o.due;
+      final tag = snooze != null ? '$k|s$snooze' : k;
+      final age = now.difference(ringAt).inSeconds;
+      if (age >= 0 && age < 120 && _ringShown.add(tag)) {
+        _open(ReminderPayload(t.id, o.dateKey, o.slot));
+        return;
+      }
+    }
   }
 
   void _handleWidgetClick(Uri? uri) {
@@ -91,26 +135,39 @@ class _RootShellState extends State<RootShell> {
     }
   }
 
+  Widget _screen(int n) {
+    if (!_visited.contains(n)) return const SizedBox.shrink();
+    switch (n) {
+      case 0:
+        return const TodayScreen();
+      case 1:
+        return const RoutinesScreen();
+      case 2:
+        return StudyModeScreen(visible: _i == 2);
+      case 3:
+        return const HistoryScreen();
+      default:
+        return const SettingsScreen();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final g = context.glass;
     return Scaffold(
       extendBody: true,
       body: GlassBackground(
-        child: IndexedStack(index: _i, children: const [
-          TodayScreen(),
-          RoutinesScreen(),
-          StudyModeScreen(),
-          HistoryScreen(),
-          SettingsScreen(),
-        ]),
+        child: IndexedStack(
+          index: _i,
+          children: [for (var n = 0; n < _tabs.length; n++) _screen(n)],
+        ),
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: GlassContainer(
             radius: 30,
-            blur: 28,
+            blur: 20,
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
             child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -118,10 +175,17 @@ class _RootShellState extends State<RootShell> {
                   for (var n = 0; n < _tabs.length; n++)
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: () => setState(() => _i = n),
+                      onTap: () {
+                        if (_i == n) return;
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _i = n;
+                          _visited.add(n);
+                        });
+                      },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOut,
+                        curve: Curves.easeOutCubic,
                         padding: EdgeInsets.symmetric(
                             horizontal: _i == n ? 14 : 10, vertical: 10),
                         decoration: BoxDecoration(
@@ -135,6 +199,7 @@ class _RootShellState extends State<RootShell> {
                               size: 24, color: _i == n ? g.text : g.subText),
                           AnimatedSize(
                             duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeOutCubic,
                             child: _i == n
                                 ? Padding(
                                     padding: const EdgeInsets.only(left: 6),
