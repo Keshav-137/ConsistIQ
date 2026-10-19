@@ -41,7 +41,7 @@ class HomeWidgetService {
     await _save('today_total', '${occurrences.length}');
 
     for (final provider in [_quickAdd, _today, _progress]) {
-      await HomeWidget.updateWidget(androidName: provider);
+      await HomeWidget.updateWidget(qualifiedAndroidName: provider);
     }
   }
 
