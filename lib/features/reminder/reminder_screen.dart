@@ -112,7 +112,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
               filled: true,
               color: AppTheme.green,
               onTap: () async {
+                if (!mounted) return;
                 await st.complete(t, p.dateKey, p.slot, source: 'notification');
+                if (!mounted) return;
                 _close();
               },
             ),
@@ -125,7 +127,8 @@ class _ReminderScreenState extends State<ReminderScreen> {
                   selected: false,
                   onTap: () async {
                     await st.snooze(t, p.dateKey, p.slot, m);
-                    if (mounted) toast(context, 'I will remind you in $m min');
+                    if (!mounted) return;
+                    toast(context, 'I will remind you in $m min');
                     _close();
                   },
                 ),
@@ -135,13 +138,19 @@ class _ReminderScreenState extends State<ReminderScreen> {
               label: 'Remind me at a specific time',
               icon: Icons.schedule_rounded,
               onTap: () async {
-                final tp = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(DateTime.now().add(const Duration(minutes: 30))));
+                final tp = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay.fromDateTime(
+                    DateTime.now().add(const Duration(minutes: 30)),
+                  ),
+                );
                 if (tp == null) return;
                 final n = DateTime.now();
                 var when = DateTime(n.year, n.month, n.day, tp.hour, tp.minute);
                 if (!when.isAfter(n)) when = when.add(const Duration(days: 1));
                 await st.snooze(t, p.dateKey, p.slot, 0, until: when);
-                if (mounted) toast(context, 'Reminder set for ${fmtHm(tp.hour, tp.minute)}');
+                if (!mounted) return;
+                toast(context, 'Reminder set for ${fmtHm(tp.hour, tp.minute)}');
                 _close();
               },
             ),

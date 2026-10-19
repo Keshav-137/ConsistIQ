@@ -189,7 +189,9 @@ class OccurrenceTile extends StatelessWidget {
       sub.add(occ.time.label);
     if (t.dose.isNotEmpty) sub.add(t.dose);
     final plan = st.planById(t.planId);
-    if (plan?.nextDay != null) sub.add(plan!.nextDay!.title);
+    if (plan?.nextDay != null) {
+      sub.add(plan!.nextDay!.title);
+    }
     final streak = t.hasStreak ? st.streakFor(t).current : 0;
     final med = t.kind == TaskKind.medicine;
 
