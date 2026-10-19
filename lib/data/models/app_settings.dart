@@ -11,6 +11,8 @@ class AppSettings {
   bool defaultAlarmStyle;
   bool alarmVibration;
   String alarmSoundUri;
+  String displayName;
+  bool profileSetupComplete;
 
   AppSettings({
     this.notificationsOn = true,
@@ -25,6 +27,8 @@ class AppSettings {
     this.defaultAlarmStyle = false,
     this.alarmVibration = true,
     this.alarmSoundUri = '',
+    this.displayName = '',
+    this.profileSetupComplete = false,
   }) : studyApps = studyApps ?? [];
 
   Map<String, dynamic> toJson() => {
@@ -40,6 +44,8 @@ class AppSettings {
         'alarmDefault': defaultAlarmStyle,
         'alarmVibration': alarmVibration,
         'alarmSoundUri': alarmSoundUri,
+        'displayName': displayName,
+        'profileSetupComplete': profileSetupComplete,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> j) => AppSettings(
@@ -55,5 +61,7 @@ class AppSettings {
         defaultAlarmStyle: (j['alarmDefault'] ?? false) as bool,
         alarmVibration: (j['alarmVibration'] ?? true) as bool,
         alarmSoundUri: (j['alarmSoundUri'] ?? '') as String,
+        displayName: (j['displayName'] ?? '') as String,
+        profileSetupComplete: (j['profileSetupComplete'] ?? false) as bool,
       );
 }
