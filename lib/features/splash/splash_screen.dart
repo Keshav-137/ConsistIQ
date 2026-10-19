@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glass_background.dart';
 import '../../core/widgets/glass_container.dart';
+import '../../state/app_state.dart';
 import '../lock/lock_gate.dart';
+import 'profile_setup_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -32,9 +35,13 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _goNext() {
     if (!mounted) return;
+    final appState = context.read<AppState>();
+    final nextScreen = appState.settings.profileSetupComplete
+        ? const LockGate()
+        : const ProfileSetupScreen();
     Navigator.of(context).pushReplacement(PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 700),
-      pageBuilder: (context, animation, secondaryAnimation) => const LockGate(),
+      pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
       transitionsBuilder: (context, animation, secondaryAnimation, child) =>
           FadeTransition(opacity: animation, child: child),
     ));
@@ -77,18 +84,13 @@ class _SplashScreenState extends State<SplashScreen>
                           blur: 22,
                           glowColor: AppTheme.blue,
                           glowOpacity: glow,
-                          child: Center(
-                            child: ShaderMask(
-                              shaderCallback: (r) => const LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Color(0xFF60A5FA), AppTheme.purple],
-                              ).createShader(r),
-                              child: const Icon(
-                                Icons.local_fire_department_rounded,
-                                size: 86,
-                                color: Colors.white,
-                              ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(40),
+                            child: Image.asset(
+                              'assets/images/icon.png',
+                              width: 150,
+                              height: 150,
+                              fit: BoxFit.cover,
                             ),
                           ),
                         ),

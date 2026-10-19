@@ -29,6 +29,21 @@ class GlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final g = context.glass;
+    final content = Container(
+      width: width,
+      height: height,
+      padding: padding,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [g.tintTop, g.tintBottom],
+        ),
+        border: Border.all(color: g.border, width: 1.2),
+      ),
+      child: child,
+    );
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
@@ -44,24 +59,12 @@ class GlassContainer extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: Container(
-            width: width,
-            height: height,
-            padding: padding,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(radius),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [g.tintTop, g.tintBottom],
+        child: blur <= 0
+            ? content
+            : BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                child: content,
               ),
-              border: Border.all(color: g.border, width: 1.2),
-            ),
-            child: child,
-          ),
-        ),
       ),
     );
   }

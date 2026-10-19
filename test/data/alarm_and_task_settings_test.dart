@@ -20,6 +20,8 @@ void main() {
       expect(settings.defaultAlarmStyle, isFalse);
       expect(settings.alarmVibration, isTrue);
       expect(settings.alarmSoundUri, isEmpty);
+      expect(settings.displayName, isEmpty);
+      expect(settings.profileSetupComplete, isFalse);
     });
 
     test('round-trips user alarm preferences', () {
@@ -29,6 +31,8 @@ void main() {
         defaultAlarmStyle: true,
         alarmVibration: false,
         alarmSoundUri: 'content://settings/system/alarm_alert',
+        displayName: 'Alex',
+        profileSetupComplete: true,
       );
 
       final restored = AppSettings.fromJson(settings.toJson());
@@ -38,6 +42,8 @@ void main() {
       expect(restored.defaultAlarmStyle, isTrue);
       expect(restored.alarmVibration, isFalse);
       expect(restored.alarmSoundUri, settings.alarmSoundUri);
+      expect(restored.displayName, 'Alex');
+      expect(restored.profileSetupComplete, isTrue);
     });
   });
 

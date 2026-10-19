@@ -44,7 +44,8 @@
     <application
         android:label="ConsistIQ"
         android:name="${applicationName}"
-        android:icon="@drawable/icon">
+        android:icon="@drawable/icon"
+        android:roundIcon="@drawable/icon">
 
         <activity
             android:name=".MainActivity"

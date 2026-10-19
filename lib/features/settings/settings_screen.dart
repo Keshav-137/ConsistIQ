@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/routes.dart';
 import '../../core/widgets/glass_container.dart';
 import '../../core/widgets/glass_widgets.dart';
+import '../../data/models/app_settings.dart';
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
 import '../../state/app_state.dart';
@@ -19,22 +20,69 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final _name = TextEditingController();
   final _key = TextEditingController();
   final _model = TextEditingController();
   bool _init = false;
+  bool _testingNotification = false;
 
   @override
   void dispose() {
+    _name.dispose();
     _key.dispose();
     _model.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveName(AppState state) async {
+    final name = _name.text.trim();
+    await state.updateSettings((settings) {
+      settings.displayName = name;
+      settings.profileSetupComplete = true;
+    }, resched: false);
+    if (mounted) toast(context, 'Name updated');
+  }
+
+  Future<void> _testNotification({
+    required bool alarm,
+    required AppSettings settings,
+  }) async {
+    if (_testingNotification) return;
+    setState(() => _testingNotification = true);
+    try {
+      await NotificationService.instance.showTest(
+        alarm: alarm,
+        settings: settings,
+      );
+      if (mounted) {
+        toast(
+          context,
+          alarm
+              ? 'Test alarm sent. Check your notification shade.'
+              : 'Test reminder sent. Check your notification shade.',
+        );
+      }
+    } catch (error) {
+      debugPrint('Could not send test notification: $error');
+      if (mounted) {
+        toast(
+          context,
+          error is StateError
+              ? error.message.toString()
+              : 'Could not send the test notification: $error',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _testingNotification = false);
+    }
   }
 
   Widget _card(String title, List<Widget> children) => Padding(
         padding: const EdgeInsets.only(bottom: 16),
         child: GlassContainer(
           padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SectionLabel(title),
             ...children,
           ]),
@@ -47,6 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final g = context.glass;
     final s = st.settings;
     if (!_init) {
+      _name.text = s.displayName;
       _key.text = s.geminiKey;
       _model.text = s.geminiModel;
       _init = true;
@@ -57,11 +106,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 150),
         children: [
           const ScreenHeader(title: 'Settings'),
+          _card('Your profile', [
+            Text(
+              'Your name is saved only on this device and is used for your dashboard greeting.',
+              style: TextStyle(fontSize: 12.5, color: g.subText),
+            ),
+            const SizedBox(height: 12),
+            GlassField(
+              controller: _name,
+              label: 'Your name (optional)',
+              keyboardType: TextInputType.name,
+            ),
+            const SizedBox(height: 10),
+            GlassButton(
+              label: 'Save name',
+              icon: Icons.person_outline_rounded,
+              compact: true,
+              onTap: () => _saveName(st),
+            ),
+          ]),
           _card('Appearance', [
             Wrap(spacing: 8, children: [
-              GlassChip(label: 'System', icon: Icons.brightness_auto_rounded, selected: s.themeMode == 0, onTap: () => st.updateSettings((x) => x.themeMode = 0, resched: false)),
-              GlassChip(label: 'Light', icon: Icons.light_mode_rounded, selected: s.themeMode == 1, onTap: () => st.updateSettings((x) => x.themeMode = 1, resched: false)),
-              GlassChip(label: 'Dark', icon: Icons.dark_mode_rounded, selected: s.themeMode == 2, onTap: () => st.updateSettings((x) => x.themeMode = 2, resched: false)),
+              GlassChip(
+                  label: 'System',
+                  icon: Icons.brightness_auto_rounded,
+                  selected: s.themeMode == 0,
+                  onTap: () => st.updateSettings((x) => x.themeMode = 0,
+                      resched: false)),
+              GlassChip(
+                  label: 'Light',
+                  icon: Icons.light_mode_rounded,
+                  selected: s.themeMode == 1,
+                  onTap: () => st.updateSettings((x) => x.themeMode = 1,
+                      resched: false)),
+              GlassChip(
+                  label: 'Dark',
+                  icon: Icons.dark_mode_rounded,
+                  selected: s.themeMode == 2,
+                  onTap: () => st.updateSettings((x) => x.themeMode = 2,
+                      resched: false)),
             ]),
           ]),
           _card('Notifications and alarms', [
@@ -81,9 +164,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 10),
             Row(children: [
-              Expanded(child: GlassButton(label: 'Test reminder', compact: true, onTap: () => NotificationService.instance.showTest())),
+              Expanded(
+                child: GlassButton(
+                  label: _testingNotification ? 'Sending...' : 'Test reminder',
+                  compact: true,
+                  onTap: _testingNotification
+                      ? null
+                      : () => _testNotification(alarm: false, settings: s),
+                ),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: GlassButton(label: 'Test alarm', compact: true, color: AppTheme.red, onTap: () => NotificationService.instance.showTest(alarm: true))),
+              Expanded(
+                child: GlassButton(
+                  label: _testingNotification ? 'Sending...' : 'Test alarm',
+                  compact: true,
+                  color: AppTheme.red,
+                  onTap: _testingNotification
+                      ? null
+                      : () => _testNotification(alarm: true, settings: s),
+                ),
+              ),
             ]),
             const SizedBox(height: 10),
             Text(
@@ -98,8 +198,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Vibrate for alarms',
               subtitle: 'Use vibration with alarm notifications',
               value: s.alarmVibration,
-              onChanged: (v) =>
-                  st.updateSettings((x) => x.alarmVibration = v),
+              onChanged: (v) => st.updateSettings((x) => x.alarmVibration = v),
             ),
             const SizedBox(height: 10),
             GlassButton(
@@ -122,13 +221,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               label: 'Use system default ringtone',
               icon: Icons.restart_alt_rounded,
               compact: true,
-              onTap: () =>
-                  st.updateSettings((x) => x.alarmSoundUri = ''),
+              onTap: () => st.updateSettings((x) => x.alarmSoundUri = ''),
             ),
             const SizedBox(height: 14),
             Text('Default reminder before a task',
-                style: TextStyle(
-                    color: g.text, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: g.text, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Wrap(spacing: 8, runSpacing: 8, children: [
               for (final minutes in [0, 5, 15, 30, 60, 120])
@@ -145,23 +242,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
             const SizedBox(height: 14),
             Text('Default snooze duration',
-                style: TextStyle(
-                    color: g.text, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: g.text, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Wrap(spacing: 8, runSpacing: 8, children: [
               for (final minutes in [5, 10, 15, 30, 60])
                 GlassChip(
                   label: '$minutes min',
                   selected: s.defaultSnoozeMinutes == minutes,
-                  onTap: () => st.updateSettings(
-                      (x) => x.defaultSnoozeMinutes = minutes),
+                  onTap: () => st
+                      .updateSettings((x) => x.defaultSnoozeMinutes = minutes),
                 ),
             ]),
             const SizedBox(height: 10),
             SwitchRow(
               icon: Icons.alarm_rounded,
               title: 'Use full-screen alarm by default',
-              subtitle: 'For new tasks and routines; individual items can override it',
+              subtitle:
+                  'For new tasks and routines; individual items can override it',
               value: s.defaultAlarmStyle,
               onChanged: (v) =>
                   st.updateSettings((x) => x.defaultAlarmStyle = v),
@@ -172,10 +269,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: Icons.notifications_active_rounded,
               color: AppTheme.red,
               compact: true,
-              onTap: () => NotificationService.instance.showTest(
-                alarm: true,
-                settings: s,
-              ),
+              onTap: _testingNotification
+                  ? null
+                  : () => _testNotification(alarm: true, settings: s),
             ),
           ]),
           _card('Security', [
@@ -187,10 +283,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (v) async {
                 if (v) {
                   if (!await AuthService.isSupported()) {
-                    if (context.mounted) toast(context, 'Set up a screen lock on your phone first');
+                    if (context.mounted) {
+                      toast(
+                          context, 'Set up a screen lock on your phone first');
+                    }
                     return;
                   }
-                  final ok = await AuthService.authenticate('Confirm to turn on app lock');
+                  final ok = await AuthService.authenticate(
+                      'Confirm to turn on app lock');
                   if (!ok) return;
                 }
                 await st.updateSettings((x) => x.appLock = v, resched: false);
@@ -208,16 +308,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               controller: _key,
               label: 'Gemini API key',
               obscure: true,
-              onChanged: (v) => st.updateSettings((x) => x.geminiKey = v.trim(), resched: false),
+              onChanged: (v) => st.updateSettings((x) => x.geminiKey = v.trim(),
+                  resched: false),
             ),
             const SizedBox(height: 10),
             GlassField(
               controller: _model,
               label: 'Model name',
-              onChanged: (v) => st.updateSettings((x) => x.geminiModel = v.trim(), resched: false),
+              onChanged: (v) => st.updateSettings(
+                  (x) => x.geminiModel = v.trim(),
+                  resched: false),
             ),
             const SizedBox(height: 6),
-            Text('If splitting fails with a model error, change the model name to a current free Gemini Flash model.',
+            Text(
+                'If splitting fails with a model error, change the model name to a current free Gemini Flash model.',
                 style: TextStyle(fontSize: 11.5, color: g.subText)),
           ]),
           _card('Integrations', [
@@ -225,7 +329,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               label: 'Import from phone calendar (Google Calendar)',
               icon: Icons.event_rounded,
               compact: true,
-              onTap: () => Navigator.of(context).push(fadeRoute(const CalendarImportScreen())),
+              onTap: () => Navigator.of(context)
+                  .push(fadeRoute(const CalendarImportScreen())),
             ),
             const SizedBox(height: 10),
             GlassButton(
@@ -249,7 +354,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ]),
           ]),
-          Center(child: Text('${AppConfig.name}  v1.0.0', style: TextStyle(color: g.subText, fontSize: 12))),
+          Center(
+              child: Text('${AppConfig.name}  v1.0.0',
+                  style: TextStyle(color: g.subText, fontSize: 12))),
         ],
       ),
     );

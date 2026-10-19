@@ -61,7 +61,8 @@ class _Planned {
   final String phase; // pre | due | nag
   final ReminderPayload payload;
   final int mins;
-  _Planned(this.id, this.when, this.task, this.slot, this.phase, this.payload, {this.mins = 0});
+  _Planned(this.id, this.when, this.task, this.slot, this.phase, this.payload,
+      {this.mins = 0});
 }
 
 class NotificationService {
@@ -72,14 +73,16 @@ class NotificationService {
   static const int windowDays = 10;
   static const int maxScheduled = 400;
 
-  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
   final StreamController<ReminderPayload> _taps = StreamController.broadcast();
   Stream<ReminderPayload> get taps => _taps.stream;
   ReminderPayload? pending;
   bool _inited = false;
 
   AndroidFlutterLocalNotificationsPlugin? get _android =>
-      _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
 
   Future<void> init({bool background = false}) async {
     if (_inited) return;
@@ -92,9 +95,11 @@ class NotificationService {
       tz.setLocalLocation(tz.getLocation('Asia/Kolkata'));
     }
     await _plugin.initialize(
-      const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
+      const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher')),
       onDidReceiveNotificationResponse: background ? null : _onResponse,
-      onDidReceiveBackgroundNotificationResponse: background ? null : notificationTapBackground,
+      onDidReceiveBackgroundNotificationResponse:
+          background ? null : notificationTapBackground,
     );
     if (!background) {
       final d = await _plugin.getNotificationAppLaunchDetails();
@@ -139,7 +144,8 @@ class NotificationService {
     return h & 0x7FFFFFFF;
   }
 
-  int _nid(String taskId, String dk, int slot, int type) => _hash('$taskId|$dk|$slot|$type');
+  int _nid(String taskId, String dk, int slot, int type) =>
+      _hash('$taskId|$dk|$slot|$type');
 
   /// Stops the ringing/visible notification for an occurrence (keeps later follow-ups).
   Future<void> silence(ReminderPayload p) async {
@@ -149,6 +155,22 @@ class NotificationService {
   }
 
   Future<void> showTest({bool alarm = false, AppSettings? settings}) async {
+    await init();
+    final android = _android;
+    if (android == null) {
+      throw StateError('Test notifications are only available on Android.');
+    }
+    var notificationsEnabled = await android.areNotificationsEnabled() ?? false;
+    if (!notificationsEnabled) {
+      await android.requestNotificationsPermission();
+      notificationsEnabled = await android.areNotificationsEnabled() ?? false;
+    }
+    if (!notificationsEnabled) {
+      throw StateError(
+        'Notifications are disabled. Allow notifications for ConsistIQ in Android settings, then try again.',
+      );
+    }
+
     final prefs = settings ?? AppSettings();
     if (alarm) await _ensureAlarmChannel(prefs);
     final body = alarm
@@ -165,8 +187,12 @@ class NotificationService {
           importance: Importance.max,
           priority: Priority.high,
           fullScreenIntent: alarm,
-          category: alarm ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.reminder,
-          audioAttributesUsage: alarm ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
+          category: alarm
+              ? AndroidNotificationCategory.alarm
+              : AndroidNotificationCategory.reminder,
+          audioAttributesUsage: alarm
+              ? AudioAttributesUsage.alarm
+              : AudioAttributesUsage.notification,
           sound: alarm && prefs.alarmSoundUri.isNotEmpty
               ? UriAndroidNotificationSound(prefs.alarmSoundUri)
               : null,
@@ -195,7 +221,9 @@ class NotificationService {
     if (!settings.notificationsOn) return;
     await _ensureAlarmChannel(settings);
     final exact = (await _android?.canScheduleExactNotifications()) ?? false;
-    final mode = exact ? AndroidScheduleMode.exactAllowWhileIdle : AndroidScheduleMode.inexactAllowWhileIdle;
+    final mode = exact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     final now = DateTime.now();
     final today = dayOnly(now);
@@ -211,20 +239,30 @@ class NotificationService {
           final k = occKey(t.id, dk, i);
           if (comps.containsKey(k)) continue; // done or skipped: no reminders
           final tt = t.times[i];
-          final due = DateTime(day.year, day.month, day.day, tt.hour, tt.minute);
+          final due =
+              DateTime(day.year, day.month, day.day, tt.hour, tt.minute);
           final payload = ReminderPayload(t.id, dk, i);
           final sn = snoozes[k];
           if (sn != null) {
-            list.add(_Planned(_nid(t.id, dk, i, 30), DateTime.fromMillisecondsSinceEpoch(sn), t, i, 'due', payload));
+            list.add(_Planned(_nid(t.id, dk, i, 30),
+                DateTime.fromMillisecondsSinceEpoch(sn), t, i, 'due', payload));
           }
           if (off < 0) continue; // yesterday: only keep snoozes
           for (var j = 0; j < t.remindBefore.length && j < 5; j++) {
             final m = t.remindBefore[j];
-            list.add(_Planned(_nid(t.id, dk, i, j), due.subtract(Duration(minutes: m)), t, i, 'pre', payload, mins: m));
+            list.add(_Planned(_nid(t.id, dk, i, j),
+                due.subtract(Duration(minutes: m)), t, i, 'pre', payload,
+                mins: m));
           }
           list.add(_Planned(_nid(t.id, dk, i, 10), due, t, i, 'due', payload));
           for (var n = 1; n <= t.nagCount && n <= 5; n++) {
-            list.add(_Planned(_nid(t.id, dk, i, 20 + n), due.add(Duration(minutes: t.followUpMinutes * n)), t, i, 'nag', payload));
+            list.add(_Planned(
+                _nid(t.id, dk, i, 20 + n),
+                due.add(Duration(minutes: t.followUpMinutes * n)),
+                t,
+                i,
+                'nag',
+                payload));
           }
         }
       }
@@ -244,7 +282,8 @@ class NotificationService {
           tz.TZDateTime.from(p.when, tz.local),
           _details(p.task, p.phase, text.$2, settings),
           androidScheduleMode: mode,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
           payload: p.payload.encode(),
         );
       } catch (e) {
@@ -284,9 +323,15 @@ class NotificationService {
               : 'Task reminder: ${t.title}',
           TaskKind.habit => 'Time for: ${t.title}',
         };
-        final lab = tt.label.isNotEmpty && t.times.length > 1 ? '${tt.label}. ' : '';
+        final lab =
+            tt.label.isNotEmpty && t.times.length > 1 ? '${tt.label}. ' : '';
         final dose = t.dose.isNotEmpty ? '${t.dose}. ' : '';
-        return (title, med ? '$dose${lab}Have you taken it?' : 'Tap Done when finished, or snooze.');
+        return (
+          title,
+          med
+              ? '$dose${lab}Have you taken it?'
+              : 'Tap Done when finished, or snooze.'
+        );
     }
   }
 
@@ -319,11 +364,15 @@ class NotificationService {
         alarm ? 'Alarms' : 'Reminders',
         importance: Importance.max,
         priority: Priority.high,
-        category: alarm ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.reminder,
+        category: alarm
+            ? AndroidNotificationCategory.alarm
+            : AndroidNotificationCategory.reminder,
         fullScreenIntent: alarm,
         ongoing: alarm,
         autoCancel: !alarm,
-        audioAttributesUsage: alarm ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
+        audioAttributesUsage: alarm
+            ? AudioAttributesUsage.alarm
+            : AudioAttributesUsage.notification,
         sound: alarm && settings.alarmSoundUri.isNotEmpty
             ? UriAndroidNotificationSound(settings.alarmSoundUri)
             : null,
@@ -331,13 +380,16 @@ class NotificationService {
         vibrationPattern: alarm && settings.alarmVibration
             ? Int64List.fromList(<int>[0, 350, 250, 350])
             : null,
-        additionalFlags: alarm ? Int32List.fromList(<int>[4]) : null, // FLAG_INSISTENT
+        additionalFlags:
+            alarm ? Int32List.fromList(<int>[4]) : null, // FLAG_INSISTENT
         styleInformation: BigTextStyleInformation(body),
         icon: '@mipmap/ic_launcher',
         actions: <AndroidNotificationAction>[
-          AndroidNotificationAction('done', t.kind == TaskKind.medicine ? 'Taken' : 'Done'),
+          AndroidNotificationAction(
+              'done', t.kind == TaskKind.medicine ? 'Taken' : 'Done'),
           AndroidNotificationAction('snooze', 'Snooze ${t.snoozeMinutes}m'),
-          const AndroidNotificationAction('later', 'Not yet', showsUserInterface: true),
+          const AndroidNotificationAction('later', 'Not yet',
+              showsUserInterface: true),
         ],
       ),
     );

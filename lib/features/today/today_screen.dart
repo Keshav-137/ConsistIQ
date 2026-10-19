@@ -30,6 +30,8 @@ class TodayScreen extends StatelessWidget {
     final h = now.hour;
     final greet =
         h < 12 ? 'Good morning' : (h < 17 ? 'Good afternoon' : 'Good evening');
+    final name = st.settings.displayName.trim();
+    final greeting = name.isEmpty ? greet : '$greet, $name';
     final headline = occs.isEmpty
         ? 'Nothing scheduled'
         : (done == occs.length
@@ -38,67 +40,75 @@ class TodayScreen extends StatelessWidget {
 
     return Stack(children: [
       SafeArea(
-        child: ListView(
+        child: ListView.builder(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 150),
-          children: [
-            ScreenHeader(title: greet, subtitle: fmtDate(now)),
-            GlassContainer(
-              padding: const EdgeInsets.all(18),
-              child: Row(children: [
-                ProgressRing(
-                  value: occs.isEmpty ? 0 : done / occs.length,
-                  size: 84,
-                  label: '$done/${occs.length}',
-                ),
-                const SizedBox(width: 18),
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(headline,
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: g.text)),
-                        const SizedBox(height: 10),
-                        Row(children: [
-                          const Icon(Icons.local_fire_department_rounded,
-                              size: 18, color: AppTheme.amber),
-                          const SizedBox(width: 6),
-                          Text('$best-day best active streak',
-                              style: TextStyle(color: g.subText, fontSize: 13)),
+          itemCount: (occs.isEmpty ? 4 : 3 + occs.length),
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return ScreenHeader(title: greeting, subtitle: fmtDate(now));
+            }
+            if (index == 1) {
+              return GlassContainer(
+                padding: const EdgeInsets.all(18),
+                child: Row(children: [
+                  ProgressRing(
+                    value: occs.isEmpty ? 0 : done / occs.length,
+                    size: 84,
+                    label: '$done/${occs.length}',
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(headline,
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: g.text)),
+                          const SizedBox(height: 10),
+                          Row(children: [
+                            const Icon(Icons.local_fire_department_rounded,
+                                size: 18, color: AppTheme.amber),
+                            const SizedBox(width: 6),
+                            Text('$best-day best active streak',
+                                style:
+                                    TextStyle(color: g.subText, fontSize: 13)),
+                          ]),
+                          const SizedBox(height: 4),
+                          Row(children: [
+                            const Icon(Icons.ac_unit_rounded,
+                                size: 18, color: AppTheme.cyan),
+                            const SizedBox(width: 6),
+                            Text(
+                                '${st.freezes} streak freeze${st.freezes == 1 ? '' : 's'} ready',
+                                style:
+                                    TextStyle(color: g.subText, fontSize: 13)),
+                          ]),
                         ]),
-                        const SizedBox(height: 4),
-                        Row(children: [
-                          const Icon(Icons.ac_unit_rounded,
-                              size: 18, color: AppTheme.cyan),
-                          const SizedBox(width: 6),
-                          Text(
-                              '${st.freezes} streak freeze${st.freezes == 1 ? '' : 's'} ready',
-                              style: TextStyle(color: g.subText, fontSize: 13)),
-                        ]),
-                      ]),
-                ),
-              ]),
-            ),
-            const SizedBox(height: 20),
-            if (occs.isEmpty)
-              GlassContainer(
+                  ),
+                ]),
+              );
+            }
+            if (index == 2) return const SizedBox(height: 20);
+            if (occs.isEmpty) {
+              return GlassContainer(
                 padding: const EdgeInsets.all(24),
                 child: Column(children: [
                   Icon(Icons.add_task_rounded, size: 44, color: g.subText),
                   const SizedBox(height: 12),
-                  Text('Tap + to add a task, routine, medicine, deadline or meeting.',
+                  Text(
+                      'Tap + to add a task, routine, medicine, deadline or meeting.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: g.subText)),
                 ]),
-              ),
-            for (final o in occs)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: OccurrenceTile(occ: o),
-              ),
-          ],
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: OccurrenceTile(occ: occs[index - 3]),
+            );
+          },
         ),
       ),
       Positioned(right: 20, bottom: 112, child: _AddFab()),
@@ -236,7 +246,7 @@ class OccurrenceTile extends StatelessWidget {
         opacity: occ.done ? 0.6 : 1,
         child: GlassContainer(
           radius: 22,
-          blur: 14,
+          blur: 0,
           padding: const EdgeInsets.all(14),
           child: Column(children: [
             Row(children: [
