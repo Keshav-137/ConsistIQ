@@ -209,22 +209,70 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    Row(children: [
-                      for (var i = 0; i < snoozeOptions.length; i++) ...[
-                        if (i > 0) const SizedBox(width: 8),
-                        Expanded(
-                          child: GlassButton(
-                            label: 'Snooze ${snoozeOptions[i]}m',
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Snooze for',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, color: g.text),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        for (final minutes in snoozeOptions)
+                          GlassButton(
+                            label: '$minutes min',
                             icon: Icons.snooze_rounded,
                             compact: true,
                             onTap: _busy
                                 ? null
-                                : () => _run(() => st.snooze(
-                                    t, p.dateKey, p.slot, snoozeOptions[i])),
+                                : () => _run(() =>
+                                    st.snooze(t, p.dateKey, p.slot, minutes)),
                           ),
-                        ),
                       ],
-                    ]),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: GlassButton(
+                        label: 'Snooze until a specific time',
+                        icon: Icons.schedule_rounded,
+                        onTap: _busy
+                            ? null
+                            : () async {
+                                final now = DateTime.now();
+                                final selected = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay.fromDateTime(
+                                    now.add(const Duration(minutes: 30)),
+                                  ),
+                                );
+                                if (selected == null || !mounted) return;
+
+                                var until = DateTime(
+                                  now.year,
+                                  now.month,
+                                  now.day,
+                                  selected.hour,
+                                  selected.minute,
+                                );
+                                if (!until.isAfter(now)) {
+                                  until = until.add(const Duration(days: 1));
+                                }
+                                await _run(() => st.snooze(
+                                      t,
+                                      p.dateKey,
+                                      p.slot,
+                                      0,
+                                      until: until,
+                                    ));
+                              },
+                      ),
+                    ),
                     const SizedBox(height: 10),
                     TextButton(
                       onPressed: _busy
