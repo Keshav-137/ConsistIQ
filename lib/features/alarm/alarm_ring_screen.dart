@@ -237,8 +237,9 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
                                 confirm: 'Skip',
                                 danger: true,
                               );
-                              if (ok)
+                              if (ok) {
                                 await _run(() => st.skip(t, p.dateKey, p.slot));
+                              }
                             },
                       child: Text(med ? 'Skip this dose' : 'Skip',
                           style: const TextStyle(

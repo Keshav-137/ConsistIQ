@@ -83,19 +83,28 @@ class TodayScreen extends StatelessWidget {
                               const Icon(Icons.local_fire_department_rounded,
                                   size: 18, color: AppTheme.amber),
                               const SizedBox(width: 6),
-                              Text('$best-day best active streak',
-                                  style: TextStyle(
-                                      color: g.subText, fontSize: 13)),
+                              Expanded(
+                                child: Text(
+                                  '$best-day best active streak',
+                                  softWrap: true,
+                                  style:
+                                      TextStyle(color: g.subText, fontSize: 13),
+                                ),
+                              ),
                             ]),
                             const SizedBox(height: 4),
                             Row(children: [
                               const Icon(Icons.ac_unit_rounded,
                                   size: 18, color: AppTheme.cyan),
                               const SizedBox(width: 6),
-                              Text(
+                              Expanded(
+                                child: Text(
                                   '${st.freezes} streak freeze${st.freezes == 1 ? '' : 's'} ready',
-                                  style: TextStyle(
-                                      color: g.subText, fontSize: 13)),
+                                  softWrap: true,
+                                  style:
+                                      TextStyle(color: g.subText, fontSize: 13),
+                                ),
+                              ),
                             ]),
                           ]),
                     ),

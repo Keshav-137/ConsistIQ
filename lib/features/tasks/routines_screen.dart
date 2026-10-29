@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -110,8 +111,8 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
 
     return SafeArea(
       child: ListView.builder(
+        scrollCacheExtent: ScrollCacheExtent.pixels(500),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 150),
-        cacheExtent: 500,
         itemCount: header.length + (list.isEmpty ? 1 : list.length),
         itemBuilder: (context, i) {
           if (i < header.length) return header[i];
